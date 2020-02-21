@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/fb.dir/source/main.cpp.o CMakeFiles/fb.dir/source/filterbank.cpp.o  -o fb 

@@ -1,3 +1,4 @@
+//TO DO: Pimpl
 class filterbank
 {
 private:
@@ -13,7 +14,7 @@ public:
                         unsigned filterTapsCount, float* filterTaps);
     ~filterbank();
     unsigned int* getOutDim();
-    float * getSubBands(float * inSignal, float * outSignal);
+    float * execute(float * inSignal, float * outSignal);
 };
 
 filterbank::filterbank(unsigned inSignalLen, unsigned inChannelCount,
@@ -36,6 +37,6 @@ unsigned * filterbank::getOutDim(){
     return new unsigned[3] {inSignalLen, inChannelCount, outSubBandsCount};
 }
 
-float * filterbank::getSubBands(float * inSignal, float * outSignal){
+float * filterbank::execute(float * inSignal, float * outSignal){ //float32
     
 }
