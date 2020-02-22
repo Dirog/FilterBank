@@ -6,32 +6,28 @@ def filterbank(inSignal, window, K, F):
     T = len(window)
     N = len(inSignal)
     xh = np.zeros(N)
-    preFFT = []
+    
     for wndIndx in range(N // T):
         for i in range(T):
             sampleIndx = i + wndIndx*T
             xh[sampleIndx] = inSignal[sampleIndx]*window[i]
 
             
-
-    # for q in range(N - F):     
-    #     sum = 0.0          
-    #     for f in range(K):
-    #         indx = f + q*K
-    #         sum += xh[indx]
-    #     preFFT.append(sum)
-
-    # for i in range( N //  ):
-    #     preFFT.append(sum(xh[i: i + K))
+    preFFT = []
+    for i in range( int(np.floor( (T+K) / 2 )) ):
+        for j in range(T // F - 1):
+            n = (i*K + j)
+            preFFT.append( sum(xh[n: n + F]) )
 
 
+    print(len(preFFT))
     ffts = []
     for n in range(N - F):
         ffts.append(sp.fft(preFFT[n: n + F]))
 
     return ffts, preFFT, xh
 
-#print( filterbank([1,1,1,1,1,1,1,1], [1,2,3,4], 1, 2) )
+print( filterbank([1,2,3,4,5,6,7,8], [1,2,3,4], 2, 2) )
 
 Fs = 1
 dt = 1 / Fs
