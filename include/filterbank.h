@@ -13,5 +13,5 @@ public:
                         unsigned int filterTapsCount, float* filterTaps);
     ~filterbank();
     unsigned int* getOutDim();
-    float * execute(float * inSignal, float * outSignal);
+    int execute(float * inSignal, float * outSignal);
 };

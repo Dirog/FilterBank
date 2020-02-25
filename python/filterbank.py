@@ -1,67 +1,73 @@
 import numpy as np
-import scipy as sp
+from scipy import signal as sp
 import matplotlib.pyplot as plt
 
 
+
 def squeeze(arr, size):
-    return arr
+    result = np.zeros(size, dtype="complex128")
+    k = len(arr) // size
+    sum = 0
+    for i in range(size):
+        for j in range(k):
+            sum += arr[i + j*size]
+        result[i] = sum
+        sum = 0
+    return result
 
 def filterbank(inSignal, h, K, F):
     T = len(h)
     N = len(inSignal)
     xh = np.zeros(N, dtype='complex128')
-    subbandsCount = len(range(1, N - T, K))
-    ffts = []
+    count = len(range(1, N - T, K))
+    ffts = np.zeros((count, F), dtype="complex128")
+    ffts_list = []
 
     for i in range(N//T):
         start = i*T
         for n in range(T):
             xh[start + n] = inSignal[start + n] * h[n]
 
-    for i in range(subbandsCount):
+    for i in range(count):
         start = i*K
         subArr = xh[start: start + T]
         fftArr = squeeze(subArr, F)
-        fftResult = np.fft.fft(fftArr)
-        ffts.append(fftResult)
+        fftResult = np.fft.fftshift(np.fft.fft(fftArr))
+        ffts[i, :] = fftResult
+        ffts_list.append(fftResult)
 
-    return ffts, xh
+    return ffts
 
-#print( filterbank([1,2,3,4,5,6,7,8], [1,2,3,4], 2, 2) )
+def plotSpectrum(signal, title = None):
+    signalLen = len(signal)
+    magfft_of_signal = np.abs(np.fft.fftshift(np.fft.fft(signal, norm="ortho")))
+    freqs = np.arange(-(signalLen // 2), signalLen // 2)
+    plt.figure()
+    plt.title(title)
+    plt.plot(freqs, magfft_of_signal)
 
-Fs = 1
-dt = 1 / Fs
-f1 = 0.1
-f2 = 0.3
-pi = np.pi
 
-t = np.arange(0, 256, dt)
-signal = np.exp(1j*2*pi*f1*t) + np.exp(1j*2*pi*f2*t)
-#signal = np.ones(256)
-#window = np.ones((windowSize,))
-#num of taps 64:
-h = [-0.000757704804076121, -0.000683755534102993, 1.04013175375723e-18, 0.000887311875128924, 0.00124496760746086, 0.000489892468210470, -0.00113486895422194, -0.00235077136409080, -0.00167592915215251, 0.00106260883184079, 0.00391854193278563, 0.00396740281901117, -4.26133990229082e-18, -0.00551550434497760, -0.00758139982354959, -0.00286691775842712, 0.00632187885183466, 0.0124303555981707, 0.00842571381000707, -0.00510211539104987, -0.0180847562922352, -0.0177387975421038, 9.31450996394886e-18, 0.0238286081418624, 0.0327809284273518, 0.0125992516068269, -0.0287989217414898, -0.0602739485764063, -0.0451890047405531, 0.0321755674766605, 0.150201524963259, 0.257245810605184, 0.300348062007683, 0.257245810605184, 0.150201524963259, 0.0321755674766605, -0.0451890047405531, -0.0602739485764063, -0.0287989217414898, 0.0125992516068269, 0.0327809284273518, 0.0238286081418624, 9.31450996394886e-18, -0.0177387975421038, -0.0180847562922352, -0.00510211539104987, 0.00842571381000707, 0.0124303555981707, 0.00632187885183466, -0.00286691775842712, -0.00758139982354959, -0.00551550434497760, -4.26133990229082e-18, 0.00396740281901117, 0.00391854193278563, 0.00106260883184079, -0.00167592915215251, -0.00235077136409080, -0.00113486895422194, 0.000489892468210470, 0.00124496760746086, 0.000887311875128924, 1.04013175375723e-18, -0.000683755534102993]
-ffts, xh = filterbank(signal, h, 32, 64)
+
+f = 0.1
+signalLen = 1024
+filterLen = 256
+fft_size = 256
+f_cutoff = 1/(fft_size)
+n = np.arange(0, signalLen)
+#signal = np.sin(2*np.pi*f*n)
+#signal = np.exp(1j*2*np.pi*f*n)
+signal = sp.chirp(n, 0, 1024, 0.5)
+plotSpectrum(signal, "fft of the signal")
 
 plt.figure()
 plt.title("signal")
-plt.plot(t, signal)
+plt.plot(signal)
 
-plt.figure()
-plt.title("multiplication result x*h")
-plt.plot(t, xh)
+taps = sp.firwin(filterLen, f_cutoff)
+#plotSpectrum(taps, "filter AR")
 
+fft_matrix = filterbank(signal, taps, 8, fft_size)
+plt.matshow(np.abs(fft_matrix))
+plt.title("spectrogram")
 
-plt.figure()
-plt.title("fft of the signal")
-plt.plot( t, np.abs( sp.fft.fft(signal) ) )
-
-
-for n in range(len(ffts)):
-    plt.figure()
-    plt.title("subband #" + str(n + 1))
-    plt.stem( np.abs(ffts[n]) )
 plt.show()
-
-
-
