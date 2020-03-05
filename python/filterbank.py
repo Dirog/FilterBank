@@ -22,16 +22,13 @@ def filterbank(inSignal, h, K, F):
     count = len(range(1, N - T, K))
     ffts = np.zeros((count, F), dtype="complex128")
 
-    for i in range(N//T):
-        start = i*T
-        for n in range(T):
-            xh[start + n] = inSignal[start + n] * h[n]
-
     for i in range(count):
         start = i*K
+        for n in range(T):
+            xh[start + n] = inSignal[start + n] * h[n]
         subArr = xh[start: start + T]
         fftArr = squeeze(subArr, F)
-        fftResult = np.fft.ifftshift(np.fft.ifft(fftArr))
+        fftResult = (np.fft.fft(fftArr))
         ffts[i, :] = fftResult
 
     return ffts
@@ -47,40 +44,37 @@ def plotSpectrum(signal, title = None):
     plt.plot(freqs, magfft_of_signal)
 
 def plotSubbands(fft_matrix, step = 1):
-    for n in range(0, fft_matrix.shape[0], step):
+    for n in range(0, fft_matrix.shape[1], step):
         plt.figure()
-        plt.plot(np.real(np.fft.ifft(np.fft.ifftshift(fft_matrix[n,:]))))
+        plt.stem(np.abs(np.fft.ifft(fft_matrix[:,n])), use_line_collection="true")
+        plt.ylim((0, 1)) 
+        #plt.stem(np.real(fft_matrix[:,n]), use_line_collection="true")
+        #plt.ylim((-1, 1)) 
+        plt.title("subband #" + str(n))
+        
+        
 
 
-signalLen = 1024
-filterLen = 256
-fft_size = 128
+signalLen = 1024*8
+filterLen = 512
+fft_size = filterLen // 64
 f_cutoff = 1/(fft_size)
 n = np.arange(0, signalLen)
 
-signal = np.sin(2*np.pi*1/32*n) + np.sin(2*np.pi*1/4*n)
-
-
-#signal = sp.chirp(n, 0, 1024, 0.5)
+signal = np.exp(1j*2*np.pi*0*n) + 0.5*np.exp(1j*2*np.pi*0.3*n) + 0.3*np.exp(1j*2*np.pi*0.7*n)
+#signal = sp.chirp(n, 0, signalLen, 1/4)
 
 plotSpectrum(signal, "fft of the signal")
 
-plt.figure()
-plt.title("signal")
-plt.stem(signal)
+# plt.figure()
+# plt.title("signal")
+# plt.stem(signal, use_line_collection=True)
 
-taps = sp.firwin(filterLen, f_cutoff)
+taps = sp.firwin(filterLen, f_cutoff, window="blackman")
 #plotSpectrum(taps, "filter AR")
 
-fft_matrix = filterbank(signal, taps, 4, fft_size)
-plt.matshow(np.abs(np.transpose(fft_matrix)), origin='lower')
-plt.title("spectrogram?")
+fft_matrix = filterbank(signal, taps, 128, fft_size)
 
-plt.figure()
-f1, t1, Sxx = sp.spectrogram(signal, 1, return_onesided=False)
-plt.pcolormesh(t1, np.fft.fftshift(f1), np.fft.fftshift(Sxx, axes=0))
-plt.ylabel('Frequency [Hz]')
-plt.xlabel('Time [sec]')
-#plotSubbands(fft_matrix, 1) ??
+plotSubbands(fft_matrix, 1)
 
 plt.show()

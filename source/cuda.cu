@@ -6,18 +6,18 @@
 
 
 
-
-cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize, float* result);
+cudaError_t execute(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize, unsigned step, float* result, unsigned resultLen);
+void readVectorFromFile(char* fileName, float* result, int len);
+void writeResultToFile(char* fileName, float* result, int x, int y);
 
 __global__ void multiplyKernel(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize, float* result, unsigned resultLen) {
-    
+
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
-    if (i < signalLen)
+    if (i < filterLen)
     {
-        int j = i % filterLen;
-        result[2 * i] = inSignal[2 * i] * filterTaps[j];
-        result[2 * i + 1] = inSignal[2 * i + 1] * filterTaps[j];
+        result[2 * i] = inSignal[2 * i] * filterTaps[i];
+        result[2 * i + 1] = inSignal[2 * i + 1] * filterTaps[i];
     }
 
 
@@ -25,25 +25,43 @@ __global__ void multiplyKernel(float* inSignal, unsigned signalLen, float* filte
 
 
 int main() {
-    const int arrSize = 2 * 16;
-    const int hSize = 8;
-    const int fftSize = 8;
-    const int resultLen = fftSize * (arrSize / hSize);
+    const int signalLen = 16 * 2;
+    const int filterLen = 8;
+    const int fftSize = filterLen;
+    const int step = 4;
+    const int fftCount = ((signalLen / 2 - filterLen / 2) / (step)) - 1;
+    const int resultLen = 2 * fftSize * fftCount;
     float result[resultLen];
-    float inSignal[arrSize] = { 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16 };
-    float h[hSize] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
-    multiplyAndAverageWithCuda(inSignal, arrSize, h, hSize, fftSize, result);
-   
+    float inSignal[signalLen];
+    float filterTaps[filterLen];
+
+    readVectorFromFile("sine", inSignal, signalLen);
+    readVectorFromFile("taps", filterTaps, filterLen);
+
+    execute(inSignal, signalLen, filterTaps, filterLen, fftSize, step, result, resultLen);
+
+    writeResultToFile("result", result, 2 * fftSize, fftCount);
+
+    /*for (int i = 0; i < resultLen / 2; i++) {
+        printf("%f", result[2 * i]);
+        if (result[2 * i + 1] >= 0)
+            printf(" + %fi\n", result[2 * i + 1]);
+        else
+            printf(" %fi\n", result[2 * i + 1]);
+    }*/
+
     return 0;
 }
 
-cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize, float* result)
+cudaError_t execute(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize, unsigned step, float* result, unsigned resultLen)
 {
     float* dev_inSignal = 0;
-    float* dev_result = 0;
     float* dev_filterTaps = 0;
-    const int resultLen = fftSize * (signalLen / filterLen);
+    int fftCount = ((signalLen / 2 - filterLen / 2) / (step)) - 1;
+    float* dev_result = 0;
+    float* dev_mlpResult = 0;
+    int mlpResultLen = filterLen;
     cudaError_t cudaStatus;
     cufftResult cufftStatus;
 
@@ -66,6 +84,13 @@ cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, floa
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&dev_mlpResult, mlpResultLen * sizeof(float));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }
+
+
     cudaStatus = cudaMalloc((void**)&dev_filterTaps, filterLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
@@ -78,6 +103,7 @@ cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, floa
         goto Error;
     }
 
+
     cudaStatus = cudaMemcpy(dev_filterTaps, filterTaps, filterLen * sizeof(float), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
@@ -85,23 +111,24 @@ cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, floa
     }
 
 
-
-    multiplyKernel <<<256, 1024>>> (dev_inSignal, signalLen, dev_filterTaps, filterLen, fftSize, dev_result, resultLen);
-
-
-    cufftHandle plan;
-    cufftStatus = cufftPlan1d(&plan, fftSize, CUFFT_C2C, signalLen / fftSize);
-    if (cufftStatus != cudaSuccess) {
-        fprintf(stderr, "cufftPlan failed!");
-        goto Error;
+    cuffthandle plan;
+    cufftstatus = cufftplan1d(&plan, 2 * fftsize, cufft_c2c, 1);
+    if (cufftstatus != cudasuccess) {
+        fprintf(stderr, "cufftplan failed!");
+        goto error;
     }
 
-    cufftStatus = cufftExecC2C(plan, reinterpret_cast<cufftComplex*>(dev_result),
-                    reinterpret_cast<cufftComplex*>(dev_result),
-                    CUFFT_FORWARD);
-    if (cufftStatus != cudaSuccess) {
-        fprintf(stderr, "cufftExec failed!");
-        goto Error;
+    for (int i = 0; i < fftCount; i++)
+    {
+        multiplyKernel<<<256, 256>>> (dev_inSignal, signalLen, dev_filterTaps, filterLen, fftSize, dev_mlpResult, mlpResultLen);
+
+        cufftStatus = cufftExecC2C(plan, reinterpret_cast<cufftComplex*>(dev_mlpResult),
+            reinterpret_cast<cufftComplex*>(dev_result + i * 2 * fftSize),
+            CUFFT_FORWARD);
+        if (cufftStatus != cudaSuccess) {
+            fprintf(stderr, "cufftExec failed!");
+            goto Error;
+        }
     }
 
     cudaStatus = cudaGetLastError();
@@ -117,7 +144,7 @@ cudaError_t multiplyAndAverageWithCuda(float* inSignal, unsigned signalLen, floa
         goto Error;
     }
 
-    cudaStatus = cudaMemcpy(result, dev_result, resultLen * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(result, reinterpret_cast<float*>(dev_result), resultLen * sizeof(float), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
@@ -134,4 +161,33 @@ Error:
     cudaFree(dev_filterTaps);
 
     return cudaStatus;
+}
+
+
+void readVectorFromFile(char* fileName, float* result, int len) {
+    FILE* signal_file;
+    signal_file = fopen(fileName, "r");
+    if (signal_file == NULL) {
+        printf("Error reading file!");
+        return;
+    }
+    for (int m = 0; m < len; ++m) {
+        fscanf(signal_file, "%f ", &result[m]);
+    }
+    fclose(signal_file);
+}
+
+void writeResultToFile(char* fileName, float* result, int x, int y) {
+    FILE* file;
+    file = fopen(fileName, "w");
+
+    int  n = 0;
+    for (int l = 0; l < y; ++l) {
+        for (int i = 0; i < x; ++i) {
+            fprintf(file, "%f ", result[n]);
+            n++;
+        }
+        fprintf(file, "\n");
+    }
+    fclose(file);
 }
