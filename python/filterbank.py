@@ -56,12 +56,13 @@ def plotSubbands(fft_matrix, step = 1):
 
 
 signalLen = 1024*8
-filterLen = 512
-fft_size = filterLen // 64
+filterLen = 128
+fft_size = filterLen // 16
 f_cutoff = 1/(fft_size)
 n = np.arange(0, signalLen)
 
-signal = np.exp(1j*2*np.pi*0*n) + 0.5*np.exp(1j*2*np.pi*0.3*n) + 0.3*np.exp(1j*2*np.pi*0.7*n)
+signal = np.zeros(signalLen, dtype="complex128")
+signal = np.sin(2*np.pi*0.3*n)
 #signal = sp.chirp(n, 0, signalLen, 1/4)
 
 plotSpectrum(signal, "fft of the signal")
@@ -73,7 +74,7 @@ plotSpectrum(signal, "fft of the signal")
 taps = sp.firwin(filterLen, f_cutoff, window="blackman")
 #plotSpectrum(taps, "filter AR")
 
-fft_matrix = filterbank(signal, taps, 128, fft_size)
+fft_matrix = filterbank(signal, taps, 32, fft_size)
 
 plotSubbands(fft_matrix, 1)
 

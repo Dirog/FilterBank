@@ -1,18 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-result_file = open("./files/result", "r")
+result_file = open("../python/files/result", "r")
 
 signalLen = 1024*8*2
-filterLen = 512
-fftSize = filterLen // 64
-step = 128
+filterLen = 128
+fftSize = filterLen // 16
+step = 32
 
 count = ((signalLen // 2 - filterLen) // step) + 1
 
 mat = np.zeros((count, fftSize), dtype="complex128")
-print(count)
-print(2*fftSize)
 
 j = 0
 for line in result_file:
