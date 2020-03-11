@@ -30,5 +30,6 @@ def plotSubbands(fft_matrix, step = 1):
 
 
 plotSubbands(mat, 1)
+
 plt.show()
 

@@ -9,7 +9,7 @@ signal_file = open("../python/files/signal", "w")
 signalLen = 1024*8
 filterLen = 128
 fft_size = filterLen // 16
-f_cutoff = 1/(fft_size)
+f_cutoff = 1/fft_size
 n = np.arange(0, signalLen)
 
 taps = sp.firwin(filterLen, f_cutoff)

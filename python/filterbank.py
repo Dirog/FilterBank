@@ -72,10 +72,10 @@ plotSpectrum(signal, "fft of the signal")
 # plt.stem(signal, use_line_collection=True)
 
 taps = sp.firwin(filterLen, f_cutoff, window="blackman")
-#plotSpectrum(taps, "filter AR")
+plotSpectrum(taps, "filter AR")
 
-fft_matrix = filterbank(signal, taps, 32, fft_size)
+#fft_matrix = filterbank(signal, taps, 32, fft_size)
 
-plotSubbands(fft_matrix, 1)
+#plotSubbands(fft_matrix, 1)
 
 plt.show()
