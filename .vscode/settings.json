@@ -1,7 +1,0 @@
-{
-    "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools",
-    "python.linting.pylintEnabled": false,
-    "python.linting.enabled": true,
-    "python.linting.mypyEnabled": true,
-    "python.pythonPath": "C:\\Users\\dirog\\AppData\\Local\\Programs\\Python\\Python38-32\\python.exe"
-}
