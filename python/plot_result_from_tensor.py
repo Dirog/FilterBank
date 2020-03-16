@@ -31,23 +31,30 @@ print(i)
 
 
 
-
-
-def plotSubbands(tensor, channel):
+def plotSubbandsAR(tensor, channel):
     for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
         plt.figure()
         plt.stem(np.abs(np.fft.ifft(tensorSlice)), use_line_collection="true")
         plt.ylim((0, 1)) 
-        #plt.stem(np.real(fft_matrix[:,n]), use_line_collection="true")
-        #plt.ylim((-1, 1)) 
+        plt.title("subband #" + str(i) + ". Channel:" + str(channel))
+       
+def plotSubbandsPR(tensor, channel):
+    for i in range(tensor.shape[1]):
+        tensorSlice = tensor[:,i,channel]
+        ifft = np.fft.ifft(tensorSlice)
+        ifft[ifft.real < 1e-6] = 0
+        ifft[ifft.imag < 1e-6] = 0
+        plt.figure()
+        plt.stem(np.angle(ifft), use_line_collection="true")
+        plt.ylim((-np.pi, np.pi)) 
         plt.title("subband #" + str(i) + ". Channel:" + str(channel))
 
 
 channel = input("Enter channel number: ")
-#subband = input("Enter subband number: ")
 channel = int(channel)
-#subband = int(subband)
-plotSubbands(tensor, channel)
+
+plotSubbandsAR(tensor, channel)
 
 plt.show()
+
