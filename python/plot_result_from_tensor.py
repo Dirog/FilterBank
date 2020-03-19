@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-result_file = open("../python/files/result", "r")
+result_file = open("./python/files/result", "r")
 
-signalLen = 1024*8*2
-filterLen = 128
-fftSize = filterLen // 16
-step = 32
+signalLen = 1024*256*2
+filterLen = 1024
+fftSize = filterLen // 128
+step = 128
 channelCount = 3
 
 count = ((signalLen // 2 - filterLen) // step) + 1
@@ -36,6 +36,7 @@ def plotSubbandsAR(tensor, channel):
         tensorSlice = tensor[:,i,channel]
         plt.figure()
         plt.stem(np.abs(np.fft.ifft(tensorSlice)), use_line_collection="true")
+        #plt.plot(np.real(tensorSlice))
         plt.ylim((0, 1)) 
         plt.title("subband #" + str(i) + ". Channel:" + str(channel))
        
@@ -43,8 +44,7 @@ def plotSubbandsPR(tensor, channel):
     for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
         ifft = np.fft.ifft(tensorSlice)
-        ifft[ifft.real < 1e-6] = 0
-        ifft[ifft.imag < 1e-6] = 0
+        ifft[np.abs(ifft) < 1e-6] = 0
         plt.figure()
         plt.stem(np.angle(ifft), use_line_collection="true")
         plt.ylim((-np.pi, np.pi)) 

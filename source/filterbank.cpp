@@ -1,34 +1,19 @@
 //TO DO: Pimpl
+#include "../include/filterbank.hpp"
+#include "../include/fb_multi_channel_Impl.cuh"
 
-
-class filterbank
+filterbank::filterbank(unsigned signalLen, unsigned channelCount,
+                        unsigned fftSize, unsigned step,
+                        unsigned filterLen, float* filterTaps)
 {
-private:
-    unsigned inSignalLen;
-    unsigned inChannelCount;
-    unsigned outSubBandsCount;
-    unsigned windowStep;
-    unsigned filterTapsCount;
-    float* filterTaps;
-public:
-    filterbank(unsigned inSignalLen, unsigned inChannelCount,
-                        unsigned outSubBandsCount, unsigned windowStep,
-                        unsigned filterTapsCount, float* filterTaps);
-    ~filterbank();
-    unsigned int* getOutDim();
-    int execute(float * inSignal, float * outSignal);
-};
-
-filterbank::filterbank(unsigned inSignalLen, unsigned inChannelCount,
-                        unsigned outSubBandsCount, unsigned windowStep,
-                        unsigned filterTapsCount, float* filterTaps)
-{
-    this->inSignalLen = inSignalLen;
-    this->inChannelCount = inChannelCount;
-    this->outSubBandsCount = outSubBandsCount;
-    this->windowStep = windowStep;
-    this->filterTapsCount = filterTapsCount;
+    this->signalLen = signalLen;
+    this->channelCount = channelCount;
+    this->fftSize = fftSize;
+    this->step = step;
+    this->filterLen = filterLen;
     this->filterTaps = filterTaps;
+    unsigned fftCount = ((signalLen / 2 - filterLen) / (step)) + 1;
+    this->resultLen = 2 * fftSize * fftCount * channelCount;
 }
 
 filterbank::~filterbank()
@@ -36,9 +21,14 @@ filterbank::~filterbank()
 }
 
 unsigned * filterbank::getOutDim(){
-    return new unsigned[3] {inSignalLen, inChannelCount, outSubBandsCount};
+    return new unsigned[3] {signalLen, channelCount, fftSize};
 }
 
-int filterbank::execute(float * inSignal, float * outSignal){
-    return -1;
+int filterbank::execute(float * inSignal, float * result)
+{
+    //fb_multi_channel_Impl fb_Impl();
+    executeImpl(inSignal, signalLen, filterTaps, filterLen,
+                        fftSize, step, channelCount, result, resultLen);
+
+    return 0;
 }
