@@ -35,7 +35,7 @@ def plotSubbandsAR(tensor, channel):
         #plt.plot(np.real(tensorSlice))
         plt.ylim((0, 0.5)) 
         plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
-        plt.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
+        #plt.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 def plotSubbandsPR(tensor, channel):
     for i in range(tensor.shape[1]):
@@ -46,12 +46,12 @@ def plotSubbandsPR(tensor, channel):
         plt.plot(np.angle(ifft))
         plt.ylim((-np.pi, np.pi)) 
         plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
-        plt.savefig('channel_%d_subband_phase_%d.png' % ((channel + 1), i))
+        #plt.savefig('channel_%d_subband_phase_%d.png' % ((channel + 1), i))
 
 
 channel = input("Enter channel number: ")
 channel = int(channel)
 
-plotSubbandsPR(tensor, channel)
+plotSubbandsAR(tensor, channel)
 plt.show()
 
