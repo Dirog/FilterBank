@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 
 result_file = open("./python/files/result", "r")
 
-signalLen = 1024*256*2
-filterLen = 1024
-fftSize = filterLen // 128
-step = 128
+signalLen = 2048*2
+filterLen = 128
+fftSize = filterLen // 32
+step = 4
 channelCount = 3
 
 count = ((signalLen // 2 - filterLen) // step) + 1
@@ -26,35 +26,32 @@ for c in range(channelCount):
             tensor[n, f, c] = complex(float(numbers[2*i]), float(numbers[2*i+1]))
             i = i + 1
 
-print(i)
-          
-
-
 
 def plotSubbandsAR(tensor, channel):
     for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
         plt.figure()
-        plt.stem(np.abs(np.fft.ifft(tensorSlice)), use_line_collection="true")
+        plt.plot(np.abs(np.fft.ifftshift(np.fft.ifft(tensorSlice))))
         #plt.plot(np.real(tensorSlice))
-        plt.ylim((0, 1)) 
-        plt.title("subband #" + str(i) + ". Channel:" + str(channel))
-       
+        plt.ylim((0, 0.5)) 
+        plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
+        plt.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
+
 def plotSubbandsPR(tensor, channel):
     for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
-        ifft = np.fft.ifft(tensorSlice)
-        ifft[np.abs(ifft) < 1e-6] = 0
+        ifft = np.fft.ifftshift(np.fft.ifft(tensorSlice))
+        #ifft[np.abs(ifft) < 1e-5] = 0
         plt.figure()
-        plt.stem(np.angle(ifft), use_line_collection="true")
+        plt.plot(np.angle(ifft))
         plt.ylim((-np.pi, np.pi)) 
-        plt.title("subband #" + str(i) + ". Channel:" + str(channel))
+        plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
+        plt.savefig('channel_%d_subband_phase_%d.png' % ((channel + 1), i))
 
 
 channel = input("Enter channel number: ")
 channel = int(channel)
 
-plotSubbandsAR(tensor, channel)
-
+plotSubbandsPR(tensor, channel)
 plt.show()
 

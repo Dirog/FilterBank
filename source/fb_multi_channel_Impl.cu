@@ -5,9 +5,6 @@
 #include "device_launch_parameters.h"
 #include "../include/fb_multi_channel_Impl.cuh"
 
-
-//__inline__ __device__ cufftComplex operator + (cufftComplex const& a, cufftComplex const& b);
-
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, int k, int step, int filterLen, int channelCount)
 {
     int index = (blockIdx.x * step + threadIdx.x)*channelCount;
@@ -27,17 +24,30 @@ __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, flo
     resultVec[res_index].y = result.y;
 }
 
+
 int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,
                     unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen)
 {
+    unsigned fftCount = ((signalLen / 2 - filterLen) / step) + 1;
+    cufftHandle plan;
+    cufftResult cufftStatus;
+    cufftStatus = cufftPlan1d(&plan, fftSize, CUFFT_C2C, fftCount * channelCount);
+    if (cufftStatus != CUFFT_SUCCESS) {
+        fprintf(stderr, "cufftPlan1d failed. Error code %d!\n", cufftStatus);
+        return cudaErrorUnknown;
+    }
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
     float* dev_inSignal;
     float* dev_filterTaps;
     cufftComplex* dev_result;
-    unsigned fftCount = ((signalLen / 2 - filterLen) / step) + 1;
-
+    
     cudaError_t cudaStatus;
-    cufftResult cufftStatus;
-
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaSetDevice failed! Do you have a CUDA-capable GPU installed?\n");
@@ -82,18 +92,13 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
             dev_filterTaps, filterLen / fftSize, step, filterLen, channelCount);
     }
 
-    cufftHandle plan;
-        cufftStatus = cufftPlan1d(&plan, fftSize, CUFFT_C2C, fftCount * channelCount);
-        if (cufftStatus != CUFFT_SUCCESS) {
-            fprintf(stderr, "cufftPlan1d failed. Error code %d!\n", cufftStatus);
-            return cudaErrorUnknown;
-        }
+    
 
-        cufftStatus = cufftExecC2C(plan, dev_result, dev_result, CUFFT_FORWARD);
-        if (cufftStatus != CUFFT_SUCCESS) {
-            fprintf(stderr, "cufftExecC2C failed. Error code %d!\n", cufftStatus);
-            return cudaErrorUnknown;
-        }
+    cufftStatus = cufftExecC2C(plan, dev_result, dev_result, CUFFT_FORWARD);
+    if (cufftStatus != CUFFT_SUCCESS) {
+        fprintf(stderr, "cufftExecC2C failed. Error code %d!\n", cufftStatus);
+        return cudaErrorUnknown;
+    }
 
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
@@ -116,6 +121,13 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     cudaFree(dev_inSignal);
     cudaFree(dev_filterTaps);
     cudaFree(dev_result);
+
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("cuda execution time (without cufftPlan1d): %f ms\n", milliseconds);
 
     return cudaStatus;
 }

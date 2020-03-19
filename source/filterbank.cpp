@@ -26,9 +26,8 @@ unsigned * filterbank::getOutDim(){
 
 int filterbank::execute(float * inSignal, float * result)
 {
-    //fb_multi_channel_Impl fb_Impl();
     executeImpl(inSignal, signalLen, filterTaps, filterLen,
-                        fftSize, step, channelCount, result, resultLen);
+                fftSize, step, channelCount, result, resultLen);
 
     return 0;
 }
