@@ -3,7 +3,7 @@
 #include <cufft.h>
 #include <cufftXt.h>
 #include "device_launch_parameters.h"
-#include "../include/fb_multi_channel_Impl.cuh"
+#include "fb_multi_channel_Impl.cuh"
 
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, int k, int step, int filterLen, int channelCount)
 {
@@ -28,7 +28,17 @@ __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, flo
 int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,
                     unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen)
 {
-    unsigned fftCount = ((signalLen / 2 - filterLen) / step) + 1;
+    unsigned zerosToPad;
+    if (signalLen % filterLen == 0){
+        zerosToPad = 0;
+    }
+    else{
+        zerosToPad = filterLen - signalLen % filterLen;
+    }
+    printf("zeros to pad: %d\n", zerosToPad);
+    unsigned newSignalLen = signalLen + zerosToPad;
+    unsigned fftCount = ((newSignalLen - filterLen) / step) + 1;
+
     cufftHandle plan;
     cufftResult cufftStatus;
     cufftStatus = cufftPlan1d(&plan, fftSize, CUFFT_C2C, fftCount * channelCount);
@@ -54,36 +64,45 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
         return cudaStatus;
     }
 
-    cudaStatus = cudaMalloc((float**)&dev_inSignal, signalLen * channelCount * sizeof(float));
+    
+    cudaStatus = cudaMalloc((float**)&dev_inSignal, sizeof(float) * channelCount * 2 * newSignalLen);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!\n");
+        fprintf(stderr, "cudaMalloc failed! 1\n");
         return cudaStatus;
     }
 
-    cudaStatus = cudaMallocManaged((float**)&dev_result, resultLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_result, resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!\n");
+        fprintf(stderr, "cudaMalloc failed! 2\n");
         return cudaStatus;
     }
 
     cudaStatus = cudaMalloc((float**)&dev_filterTaps, filterLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!\n");
+        fprintf(stderr, "cudaMalloc failed! 3\n");
         return cudaStatus;
     }
 
-
-    cudaStatus = cudaMemcpy(dev_inSignal, inSignal, signalLen * channelCount * sizeof(float), cudaMemcpyHostToDevice);
+    float * zeros = new float[2 * zerosToPad * channelCount]();
+    cudaStatus = cudaMemcpy(dev_inSignal, zeros, 2 * zerosToPad * channelCount * sizeof(float), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!\n");
+        fprintf(stderr, "cudaMemcpy failed! 4\n");
         return cudaStatus;
     }
 
+    cudaStatus = cudaMemcpy(dev_inSignal + channelCount * 2 * zerosToPad, inSignal, 2 * signalLen * channelCount * sizeof(float), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed! 5\n");
+        return cudaStatus;
+    }
+   
     cudaStatus = cudaMemcpy(dev_filterTaps, filterTaps, filterLen * sizeof(float), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!\n");
+        fprintf(stderr, "cudaMemcpy failed! 6\n");
         return cudaStatus;
     }
+
+
 
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
 

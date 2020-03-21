@@ -1,15 +1,26 @@
 import numpy as np
+import scipy.signal as sp 
 import matplotlib.pyplot as plt
 
-result_file = open("./python/files/result", "r")
+result_file = open("../python/files/result", "r")
+matadata_file = open("../python/files/metadata", "r")
 
-signalLen = 2048*2
-filterLen = 128
-fftSize = filterLen // 32
-step = 4
-channelCount = 3
+metadata = list(map(int, matadata_file.readline().split()))
+channelCount = metadata[0]
+signalLen = metadata[1]
+filterLen = metadata[2]
+fftSize = metadata[3]
+step = metadata[4]
 
-count = ((signalLen // 2 - filterLen) // step) + 1
+
+if (signalLen % filterLen) == 0:
+    newSignalLen = signalLen
+else:
+    newSignalLen = signalLen + filterLen - signalLen % filterLen
+
+
+count = ((newSignalLen - filterLen) // step) + 1
+
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fftSize) + ", K = " + str(step) + ", fft count = " + str(count))
@@ -27,31 +38,18 @@ for c in range(channelCount):
             i = i + 1
 
 
-def plotSubbandsAR(tensor, channel):
+def plotSubbands(tensor, channel):
     for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
-        plt.figure()
-        plt.plot(np.abs(np.fft.ifftshift(np.fft.ifft(tensorSlice))))
-        #plt.plot(np.real(tensorSlice))
-        plt.ylim((0, 0.5)) 
-        plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
-        #plt.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
-
-def plotSubbandsPR(tensor, channel):
-    for i in range(tensor.shape[1]):
-        tensorSlice = tensor[:,i,channel]
-        ifft = np.fft.ifftshift(np.fft.ifft(tensorSlice))
-        #ifft[np.abs(ifft) < 1e-5] = 0
-        plt.figure()
-        plt.plot(np.angle(ifft))
-        plt.ylim((-np.pi, np.pi)) 
-        plt.title("subband #" + str(i) + ". Channel:" + str(channel + 1))
-        #plt.savefig('channel_%d_subband_phase_%d.png' % ((channel + 1), i))
+        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+        fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
+        axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+        axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
 
 
 channel = input("Enter channel number: ")
 channel = int(channel)
 
-plotSubbandsAR(tensor, channel)
+plotSubbands(tensor, channel)
 plt.show()
 

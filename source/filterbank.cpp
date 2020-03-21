@@ -1,6 +1,5 @@
-//TO DO: Pimpl
-#include "../include/filterbank.hpp"
-#include "../include/fb_multi_channel_Impl.cuh"
+#include "filterbank.hpp"
+#include "fb_multi_channel_Impl.cuh"
 
 filterbank::filterbank(unsigned signalLen, unsigned channelCount,
                         unsigned fftSize, unsigned step,
@@ -12,7 +11,7 @@ filterbank::filterbank(unsigned signalLen, unsigned channelCount,
     this->step = step;
     this->filterLen = filterLen;
     this->filterTaps = filterTaps;
-    unsigned fftCount = ((signalLen / 2 - filterLen) / (step)) + 1;
+    unsigned fftCount = ((signalLen - filterLen) / (step)) + 1;
     this->resultLen = 2 * fftSize * fftCount * channelCount;
 }
 
