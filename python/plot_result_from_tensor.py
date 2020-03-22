@@ -45,6 +45,8 @@ def plotSubbands(tensor, channel):
         fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
         axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
         axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+        axes[0].set_ylim((0, 0.4))
+        fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 
 channel = input("Enter channel number: ")

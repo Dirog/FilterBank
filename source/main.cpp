@@ -37,7 +37,6 @@ int main() {
     filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps);
     fb.execute(inSignal, result);
 
-
     writeResultToFile("../python/files/result", result, resultLen);
 
     return 0;

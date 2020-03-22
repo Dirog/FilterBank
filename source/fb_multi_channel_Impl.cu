@@ -5,19 +5,33 @@
 #include "device_launch_parameters.h"
 #include "fb_multi_channel_Impl.cuh"
 
-__global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, int k, int step, int filterLen, int channelCount)
+#define MAX_THREADS_PER_BLOCK 1024
+
+__global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, unsigned k,
+                                unsigned step, unsigned filterLen, unsigned channelCount, unsigned fftSize, unsigned fftCount)
 {
-    int index = (blockIdx.x * step + threadIdx.x)*channelCount;
-    int res_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchIdx = 0;
+    int newThreadIdx = 0;
+    if(fftSize > MAX_THREADS_PER_BLOCK && blockIdx.x >= fftCount){
+        newThreadIdx = threadIdx.x + blockIdx.x / fftCount * blockDim.x;
+        batchIdx = blockIdx.x % fftCount;
+    }
+    else{
+        batchIdx = blockIdx.x;
+        newThreadIdx = threadIdx.x;
+    }
+
+    int index = (batchIdx * step + newThreadIdx)*channelCount;
+    int res_index = batchIdx * fftSize + newThreadIdx;
     cufftComplex result;
     result.x = 0;
     result.y = 0;
 
     for (int i = 0; i < k; ++i)
     {
-        int sig_index = i * blockDim.x * channelCount + index;
-        result.x += filterTaps[i * blockDim.x + threadIdx.x] * signal[sig_index].x;
-        result.y += filterTaps[i * blockDim.x + threadIdx.x] * signal[sig_index].y;
+        int sig_index = i * fftSize * channelCount + index;
+        result.x += filterTaps[i * fftSize + newThreadIdx] * signal[sig_index].x;
+        result.y += filterTaps[i * fftSize + newThreadIdx] * signal[sig_index].y;
     }
 
     resultVec[res_index].x = result.x;
@@ -26,7 +40,7 @@ __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, flo
 
 
 int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,
-                    unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen)
+                unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen)
 {
     unsigned zerosToPad;
     if (signalLen % filterLen == 0){
@@ -35,7 +49,7 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     else{
         zerosToPad = filterLen - signalLen % filterLen;
     }
-    printf("zeros to pad: %d\n", zerosToPad);
+    //printf("Zeros to pad: %d\n", zerosToPad);
     unsigned newSignalLen = signalLen + zerosToPad;
     unsigned fftCount = ((newSignalLen - filterLen) / step) + 1;
 
@@ -47,15 +61,29 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
         return cudaErrorUnknown;
     }
 
+    
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start);
 
+
     float* dev_inSignal;
     float* dev_filterTaps;
     cufftComplex* dev_result;
+
+    unsigned threads_per_block;
+    unsigned num_Blocks;
+
+    if(fftSize > MAX_THREADS_PER_BLOCK){
+        threads_per_block = MAX_THREADS_PER_BLOCK;
+        num_Blocks = fftCount * fftSize / MAX_THREADS_PER_BLOCK;
+    }
+    else{
+        threads_per_block = fftSize;
+        num_Blocks = fftCount;
+    }
     
     cudaError_t cudaStatus;
     cudaStatus = cudaSetDevice(0);
@@ -103,12 +131,11 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     }
 
 
-
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
 
     for (int channelIndex = 0; channelIndex < channelCount; channelIndex++) {
-        mupltiply_sum << <fftCount, fftSize >> > (dev_inComplexSignal + channelIndex, dev_result + fftCount*fftSize*channelIndex,
-            dev_filterTaps, filterLen / fftSize, step, filterLen, channelCount);
+        mupltiply_sum << <num_Blocks, threads_per_block >> > (dev_inComplexSignal + channelIndex, dev_result + fftCount*fftSize*channelIndex,
+            dev_filterTaps, filterLen / fftSize, step, filterLen, channelCount, fftSize, fftCount);
     }
 
     

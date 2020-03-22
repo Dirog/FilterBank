@@ -5,6 +5,8 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 FIND_PACKAGE(CUDA REQUIRED)
 
+INCLUDE_DIRECTORIES(/usr/local/cuda/include)
+
 ADD_LIBRARY(fb_cuda STATIC
   ./source/filterbank.cpp
   ./include/filterbank.hpp

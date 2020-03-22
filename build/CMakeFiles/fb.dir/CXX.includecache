@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/filterbank.hpp
+
+/home/dirog/FilterBank/source/main.cpp
+stdio.h
+-
+filterbank.hpp
+/home/dirog/FilterBank/source/filterbank.hpp
+
