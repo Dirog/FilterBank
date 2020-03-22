@@ -1,4 +1,0 @@
-/home/dirog/FilterBank/build/CMakeFiles/rebuild_cache.dir
-/home/dirog/FilterBank/build/CMakeFiles/edit_cache.dir
-/home/dirog/FilterBank/build/CMakeFiles/fb_cuda.dir
-/home/dirog/FilterBank/build/CMakeFiles/fb.dir

@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/fb.dir/source/main.cpp.o CMakeFiles/fb.dir/cmake_device_link.o  -o fb  -L/usr/lib/x86_64-linux-gnu/stubs  -L/usr/lib/gcc/x86_64-linux-gnu/8 libfb_cuda.a /usr/lib/x86_64-linux-gnu/libcufft.so -lcudadevrt -lcudart_static -lrt -lpthread -ldl 
