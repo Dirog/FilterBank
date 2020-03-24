@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <cufftXt.h>
+#include <vector>
 #include "device_launch_parameters.h"
 #include "fb_multi_channel_Impl.cuh"
 
@@ -10,33 +11,24 @@
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, unsigned k,
                                 unsigned step, unsigned filterLen, unsigned channelCount, unsigned fftSize, unsigned fftCount)
 {
-    int batchIdx = 0;
-    int newThreadIdx = 0;
-    if(fftSize > MAX_THREADS_PER_BLOCK && blockIdx.x >= fftCount){
-        newThreadIdx = threadIdx.x + blockIdx.x / fftCount * blockDim.x;
-        batchIdx = blockIdx.x % fftCount;
-    }
-    else{
-        batchIdx = blockIdx.x;
-        newThreadIdx = threadIdx.x;
-    }
-
-    int index = (batchIdx * step + newThreadIdx)*channelCount;
-    int res_index = batchIdx * fftSize + newThreadIdx;
+    unsigned batch_index = ;
+    unsigned index = (batch_index * step + f_index) * channelCount;
     cufftComplex result;
     result.x = 0;
     result.y = 0;
 
     for (int i = 0; i < k; ++i)
     {
-        int sig_index = i * fftSize * channelCount + index;
-        result.x += filterTaps[i * fftSize + newThreadIdx] * signal[sig_index].x;
-        result.y += filterTaps[i * fftSize + newThreadIdx] * signal[sig_index].y;
+        unsigned sig_index = i * fftSize * channelCount + index;
+        unsigned h_index = i * fftSize + f_index;
+        result.x += filterTaps[h_index] * signal[sig_index].x;
+        result.y += filterTaps[h_index] * signal[sig_index].y;
     }
 
     resultVec[res_index].x = result.x;
     resultVec[res_index].y = result.y;
 }
+
 
 
 int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,

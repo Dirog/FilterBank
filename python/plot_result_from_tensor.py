@@ -2,7 +2,6 @@ import numpy as np
 import scipy.signal as sp 
 import matplotlib.pyplot as plt
 
-result_file = open("../python/files/result", "r")
 matadata_file = open("../python/files/metadata", "r")
 
 metadata = list(map(int, matadata_file.readline().split()))
@@ -25,16 +24,16 @@ count = ((newSignalLen - filterLen) // step) + 1
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fftSize) + ", K = " + str(step) + ", fft count = " + str(count))
 
-tensor = np.zeros((count, fftSize, channelCount), dtype="complex128")
+tensor = np.zeros((count, fftSize, channelCount), dtype="complex64")
 
-line = result_file.readline()
-numbers = line.split()
+vector = np.fromfile("../python/files/result", dtype="float32")
+#print(vector)
 
 i = 0
 for c in range(channelCount):
     for n in range(count):
         for f in range(fftSize):
-            tensor[n, f, c] = complex(float(numbers[2*i]), float(numbers[2*i+1]))
+            tensor[n, f, c] = complex(float(vector[2*i]), float(vector[2*i+1]))
             i = i + 1
 
 
@@ -45,8 +44,8 @@ def plotSubbands(tensor, channel):
         fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
         axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
         axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
-        axes[0].set_ylim((0, 0.4))
-        fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
+        #axes[0].set_ylim((0, 0.4))
+        #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 
 channel = input("Enter channel number: ")
