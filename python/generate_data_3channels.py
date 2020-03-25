@@ -7,10 +7,10 @@ from scipy import signal as sp
 metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
-signalLen = 1024
-filterLen = 128
-fft_size = 4
-step = 8
+signalLen = 20000000
+filterLen = 1024 * 32
+fft_size = 1024
+step = signalLen // 2000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))
@@ -24,10 +24,9 @@ taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = (2*ch.complex_chirp(n, -0.01*signalLen, 1, 0.01*signalLen) + ch.complex_chirp(n, 0.4*signalLen, 1, 0.45*signalLen) +
-    ch.complex_chirp(n, -0.4*signalLen, 1, -0.45*signalLen) + ch.complex_chirp(n, -0.2*signalLen, 1, -0.15*signalLen))
-signal2 = 2*ch.complex_chirp(n, -0.3*signalLen, 1, -0.27*signalLen)
-signal3 = 3*ch.complex_chirp(n, 0.2*signalLen, 1, 0.24*signalLen)
+signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + ch.complex_chirp(n, (0.5-0.00001)*signalLen, 1, (0.5+0.00001)*signalLen)
+signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
+signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 
 signal1 = signal1.astype("complex64")
 signal2 = signal2.astype("complex64")
@@ -46,10 +45,10 @@ for i in range(signalLen):
 np.asarray(vector).tofile("../python/files/signal")
 
 #plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen))
-for i in range(len(signals)):
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
-    fig.suptitle("signal #" + str(i+1)) 
-    axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
-    axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
+# for i in range(len(signals)):
+#     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+#     fig.suptitle("signal #" + str(i+1)) 
+#     axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
+#     axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
 
 plt.show()

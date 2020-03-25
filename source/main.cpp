@@ -7,7 +7,7 @@
 using namespace std;
 
 int readVectorFromFile(const char * filePath, float * result, unsigned len);
-int writeVectorToFile(const char * filePath, float * vector, unsigned len);
+int writeVectorToFile(const char * filePath, float * vector, unsigned long len);
 void readMetadataFromFile(const char* fileName, unsigned* result);
 
 
@@ -28,6 +28,7 @@ int main() {
         newSignalLen = signalLen + filterLen - signalLen % filterLen;
     }
 
+
     unsigned fftCount = ((newSignalLen - filterLen) / (step)) + 1;
     const unsigned long resultLen = 2 * fftSize * fftCount * channelCount;
     float* result = new float[resultLen];
@@ -36,7 +37,6 @@ int main() {
     printf("C = %d, N = %d, T = %d, F = %d, K = %d, fft count = %d\n", channelCount, signalLen, filterLen, fftSize, step, fftCount);
 
     float * inSignal = new float[2*signalLen * channelCount];
-    printf("!\n");
     float filterTaps[filterLen];
 
 
@@ -83,7 +83,7 @@ int readVectorFromFile(const char * filePath, float * result, unsigned len){
     return 0;
 }
 
-int writeVectorToFile(const char * filePath, float * vector, unsigned len){
+int writeVectorToFile(const char * filePath, float * vector, unsigned long len){
     ofstream wf(filePath, ios::out | ios::binary);
    if(!wf) {
       cout << "Cannot open file!" << endl;

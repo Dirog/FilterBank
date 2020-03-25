@@ -3,21 +3,25 @@
 #include <cufft.h>
 #include <cufftXt.h>
 #include <vector>
+#include <math.h>
 #include "device_launch_parameters.h"
 #include "fb_multi_channel_Impl.cuh"
-
-#define MAX_THREADS_PER_BLOCK 1024
 
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, unsigned k,
                                 unsigned step, unsigned filterLen, unsigned channelCount, unsigned fftSize, unsigned fftCount)
 {
-    unsigned batch_index = ;
+    unsigned sub_batch_size = fftSize / blockDim.x;
+    unsigned sub_batch_index = blockIdx.x % sub_batch_size;
+    unsigned f_index = sub_batch_index * sub_batch_size + threadIdx.x;
+    unsigned batch_index = blockIdx.x / sub_batch_size;
     unsigned index = (batch_index * step + f_index) * channelCount;
+    unsigned res_index = batch_index * fftSize + f_index;
+    //printf("sub_batch_size %d, sub_batch_index %d, batch_index %d, f_index %d, index %d, res_index %d\n", sub_batch_size, sub_batch_index, batch_index, f_index, index, res_index);
     cufftComplex result;
     result.x = 0;
     result.y = 0;
 
-    for (int i = 0; i < k; ++i)
+    for (unsigned i = 0; i < k; ++i)
     {
         unsigned sig_index = i * fftSize * channelCount + index;
         unsigned h_index = i * fftSize + f_index;
@@ -41,7 +45,7 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     else{
         zerosToPad = filterLen - signalLen % filterLen;
     }
-    //printf("Zeros to pad: %d\n", zerosToPad);
+    printf("Zeros to pad: %d\n", zerosToPad);
     unsigned newSignalLen = signalLen + zerosToPad;
     unsigned fftCount = ((newSignalLen - filterLen) / step) + 1;
 
@@ -68,14 +72,9 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     unsigned threads_per_block;
     unsigned num_Blocks;
 
-    if(fftSize > MAX_THREADS_PER_BLOCK){
-        threads_per_block = MAX_THREADS_PER_BLOCK;
-        num_Blocks = fftCount * fftSize / MAX_THREADS_PER_BLOCK;
-    }
-    else{
-        threads_per_block = fftSize;
-        num_Blocks = fftCount;
-    }
+    threads_per_block = 1024;
+    num_Blocks = fftCount * ceil((double)fftSize / threads_per_block);
+    printf("threads_per_block %d, num_Blocks %d\n", threads_per_block, num_Blocks);
     
     cudaError_t cudaStatus;
     cudaStatus = cudaSetDevice(0);

@@ -38,19 +38,32 @@ for c in range(channelCount):
 
 
 def plotSubbands(tensor, channel):
-    for i in range(tensor.shape[1]):
+    for i in range(tensor.shape[1]): #
         tensorSlice = tensor[:,i,channel]
-        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
-        fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
-        axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
-        axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
-        #axes[0].set_ylim((0, 0.4))
-        #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
+        if np.max(np.abs(tensorSlice)) > 1:
+            fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+            fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
+            axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+            axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+            #axes[0].set_ylim((0, 0.1))
+            #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
+
+def plotSubband(tensor, channel, subband):
+    tensorSlice = tensor[:,subband,channel]
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+    fig.suptitle("subband #" + str(subband) + ". Channel:" + str(channel + 1)) 
+    axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+    axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+    #axes[0].set_ylim((0, 0.4))
+    #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 
 channel = input("Enter channel number: ")
 channel = int(channel)
+# subband = input("Enter subband number: ")
+# subband = int(subband)
 
 plotSubbands(tensor, channel)
+#plotSubband(tensor, channel, subband)
 plt.show()
 
