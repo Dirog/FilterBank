@@ -7,11 +7,11 @@ private:
     unsigned fftSize;
     unsigned step;
     unsigned filterLen;
+    unsigned threads_per_block;
     float* filterTaps;
 public:
-    filterbank(unsigned signalLen, unsigned channelCount,
-                        unsigned fftSize, unsigned step,
-                        unsigned filterLen, float* filterTaps);
+    filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step,
+                        unsigned filterLen, float* filterTaps, unsigned threads_per_block);
     ~filterbank();
     unsigned * getOutDim();
     int execute(float * inSignal, float * outSignal);

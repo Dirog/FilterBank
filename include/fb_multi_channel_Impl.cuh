@@ -2,8 +2,8 @@
 #include <cufft.h>
 
 
-int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,
-                    unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen);
+int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen, unsigned fftSize,
+	unsigned step, unsigned channelCount, float* result, unsigned long resultLen, unsigned threads_per_block);
                     
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, int k, int step,
 									int filterLen, int channelCount);

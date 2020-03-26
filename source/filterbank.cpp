@@ -3,7 +3,7 @@
 
 filterbank::filterbank(unsigned signalLen, unsigned channelCount,
                         unsigned fftSize, unsigned step,
-                        unsigned filterLen, float* filterTaps)
+                        unsigned filterLen, float* filterTaps, unsigned threads_per_block)
 {
     this->signalLen = signalLen;
     this->channelCount = channelCount;
@@ -13,6 +13,7 @@ filterbank::filterbank(unsigned signalLen, unsigned channelCount,
     this->filterTaps = filterTaps;
     unsigned fftCount = ((signalLen - filterLen) / (step)) + 1;
     this->resultLen = 2 * fftSize * fftCount * channelCount;
+    this->threads_per_block = threads_per_block;
 }
 
 filterbank::~filterbank()
@@ -26,7 +27,7 @@ unsigned * filterbank::getOutDim(){
 int filterbank::execute(float * inSignal, float * result)
 {
     executeImpl(inSignal, signalLen, filterTaps, filterLen,
-                fftSize, step, channelCount, result, resultLen);
+                fftSize, step, channelCount, result, resultLen, threads_per_block);
 
     return 0;
 }

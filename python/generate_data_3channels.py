@@ -8,9 +8,9 @@ metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
 signalLen = 20000000
-filterLen = 1024 * 32
-fft_size = 1024
-step = signalLen // 2000
+fft_size = 8192
+filterLen = 1024 * 16
+step = signalLen // 10000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))

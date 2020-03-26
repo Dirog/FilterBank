@@ -10,12 +10,15 @@
 __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, float* filterTaps, unsigned k,
                                 unsigned step, unsigned filterLen, unsigned channelCount, unsigned fftSize, unsigned fftCount)
 {
+
     unsigned sub_batch_size = fftSize / blockDim.x;
     unsigned sub_batch_index = blockIdx.x % sub_batch_size;
-    unsigned f_index = sub_batch_index * sub_batch_size + threadIdx.x;
+
+    unsigned f_index = sub_batch_index * blockDim.x + threadIdx.x;
     unsigned batch_index = blockIdx.x / sub_batch_size;
     unsigned index = (batch_index * step + f_index) * channelCount;
     unsigned res_index = batch_index * fftSize + f_index;
+
     //printf("sub_batch_size %d, sub_batch_index %d, batch_index %d, f_index %d, index %d, res_index %d\n", sub_batch_size, sub_batch_index, batch_index, f_index, index, res_index);
     cufftComplex result;
     result.x = 0;
@@ -36,7 +39,7 @@ __global__ void mupltiply_sum(cufftComplex* signal, cufftComplex* resultVec, flo
 
 
 int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned filterLen,
-                unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen)
+                unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen, unsigned threads_per_block)
 {
     unsigned zerosToPad;
     if (signalLen % filterLen == 0){
@@ -57,22 +60,11 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
         return cudaErrorUnknown;
     }
 
-    
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    cudaEventRecord(start);
-
-
     float* dev_inSignal;
     float* dev_filterTaps;
     cufftComplex* dev_result;
 
-    unsigned threads_per_block;
     unsigned num_Blocks;
-
-    threads_per_block = 1024;
     num_Blocks = fftCount * ceil((double)fftSize / threads_per_block);
     printf("threads_per_block %d, num_Blocks %d\n", threads_per_block, num_Blocks);
     
@@ -121,6 +113,11 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
         return cudaStatus;
     }
 
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
 
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
 
@@ -130,6 +127,9 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     }
 
     
+
+
+
 
     cufftStatus = cufftExecC2C(plan, dev_result, dev_result, CUFFT_FORWARD);
     if (cufftStatus != CUFFT_SUCCESS) {
@@ -158,7 +158,6 @@ int executeImpl(float* inSignal, unsigned signalLen, float* filterTaps, unsigned
     cudaFree(dev_inSignal);
     cudaFree(dev_filterTaps);
     cudaFree(dev_result);
-
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
