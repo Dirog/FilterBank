@@ -9,6 +9,9 @@ private:
     unsigned filterLen;
     unsigned threads_per_block;
     float* filterTaps;
+
+    class fb_impl;
+    fb_impl * impl;
 public:
     filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step,
                         unsigned filterLen, float* filterTaps, unsigned threads_per_block);
