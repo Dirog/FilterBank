@@ -45,10 +45,15 @@ int main() {
 
     
     filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 1024);
-    fb.execute(inSignal, result);
+
+    int status;
+    status = fb.execute(inSignal, result);
 
     writeVectorToFile("../python/files/result", result, resultLen);
 
+    // unsigned * dims;
+    // dims = fb.getOutDim();
+    // printf("%d, %d, %d\n", dims[0], dims[1], dims[2]);
     return 0;
 }
 
