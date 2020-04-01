@@ -9,8 +9,8 @@ metadata_file = open("../python/files/metadata", "w")
 channelCount = 3
 signalLen = 20000000
 fft_size = 1024
-filterLen = 1024 * 16
-step = signalLen // 10000
+filterLen = fft_size * 16
+step = 2000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))
@@ -24,7 +24,7 @@ taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + ch.complex_chirp(n, (0.5-0.00001)*signalLen, 1, (0.5+0.00001)*signalLen)
+signal1 = 2*ch.complex_chirp(n, -0.0001*signalLen, 1, 0.0001*signalLen) + 10*ch.complex_chirp(n, (0.5-0.0002)*signalLen, 1, (0.5+0.0002)*signalLen)
 signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
 signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 

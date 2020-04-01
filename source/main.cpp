@@ -44,7 +44,7 @@ int main() {
     readVectorFromFile("../python/files/taps", filterTaps, filterLen);
 
     
-    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 128);
+    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 1024);
     fb.execute(inSignal, result);
 
     writeVectorToFile("../python/files/result", result, resultLen);

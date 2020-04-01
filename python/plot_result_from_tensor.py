@@ -40,7 +40,7 @@ for c in range(channelCount):
 def plotSubbands(tensor, channel):
     for i in range(tensor.shape[1]): #
         tensorSlice = tensor[:,i,channel]
-        if np.max(np.abs(tensorSlice)) > 1:
+        if np.max(np.abs(tensorSlice)) > 2:
             fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
             fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
             axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
