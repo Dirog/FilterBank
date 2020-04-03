@@ -11,14 +11,7 @@ filterLen = metadata[2]
 fftSize = metadata[3]
 step = metadata[4]
 
-
-if (signalLen % filterLen) == 0:
-    newSignalLen = signalLen
-else:
-    newSignalLen = signalLen + filterLen - signalLen % filterLen
-
-
-count = ((newSignalLen - filterLen) // step) + 1
+count = signalLen // step
 
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
@@ -43,7 +36,7 @@ def plotSubbands(tensor, channel):
         if np.max(np.abs(tensorSlice)) > 2:
             fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
             fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
-            axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+            axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count), scale="dB")
             axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
             #axes[0].set_ylim((0, 0.1))
             #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
@@ -57,6 +50,28 @@ def plotSubband(tensor, channel, subband):
     #axes[0].set_ylim((0, 0.4))
     #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
+def plotSignal(tensor, channel):
+    for i in range(tensor.shape[1]): #
+        tensorSlice = tensor[:,i,channel]
+        if np.max(np.abs(tensorSlice)) > 2.1:
+            fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(7, 7))
+            axes[0].plot(np.real(tensorSlice))
+            axes[0].set_title("Re")
+            axes[1].plot(np.imag(tensorSlice))
+            axes[1].set_title("Im")
+
+            analytic_signal = sp.hilbert(np.real(tensorSlice))
+            amplitude_envelope = np.abs(analytic_signal)
+            instantaneous_phase = np.unwrap(np.angle(analytic_signal))
+
+            fs = signalLen
+            instantaneous_frequency = (np.diff(instantaneous_phase) / (2.0*np.pi) * fs)
+            axes[2].set_title("Instantaneous phase")
+            axes[2].plot(instantaneous_phase)
+            axes[3].set_title("Instantaneous frequency")
+            axes[3].plot(instantaneous_frequency)
+            #axes[3].set_ylim((0, 30000))
+            fig.tight_layout()
 
 channel = input("Enter channel number: ")
 channel = int(channel)
@@ -65,4 +80,6 @@ channel = int(channel)
 
 plotSubbands(tensor, channel)
 #plotSubband(tensor, channel, subband)
+#plotSignal(tensor, channel)
+
 plt.show()

@@ -43,12 +43,10 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
         float d = factors[factor_index].y;
         float re = a*c - b*d;
         float im = b*c + a*d;
-        tensor[tensor_index].x = tensor[tensor_index].x * re;
-        tensor[tensor_index].y = tensor[tensor_index].y * im;
+        tensor[tensor_index].x = re;
+        tensor[tensor_index].y = im;
     }
 }
-
-
 
 int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
                 unsigned fftSize, unsigned step, unsigned channelCount, float* result,
@@ -58,16 +56,10 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
         threads_per_block = fftSize;
     }
 
-    unsigned zerosToPad;
-    if (signalLen % filterLen == 0){
-        zerosToPad = 0;
-    }
-    else{
-        zerosToPad = filterLen - signalLen % filterLen;
-    }
+    unsigned zerosToPad = filterLen - 1;
     printf("Zeros to pad: %d\n", zerosToPad);
     unsigned newSignalLen = signalLen + zerosToPad;
-    unsigned fftCount = ((newSignalLen - filterLen) / step) + 1;
+    unsigned fftCount = signalLen / step;
 
     cufftResult cufftStatus;
 

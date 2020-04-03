@@ -20,16 +20,7 @@ int main() {
     const unsigned fftSize = metadata[3];
     const unsigned step = metadata[4];
 
-    unsigned newSignalLen;
-    if (signalLen % filterLen == 0){
-        newSignalLen = signalLen;
-    }
-    else{
-        newSignalLen = signalLen + filterLen - signalLen % filterLen;
-    }
-
-
-    unsigned fftCount = ((newSignalLen - filterLen) / (step)) + 1;
+    unsigned fftCount = signalLen / step;
     const unsigned long resultLen = 2 * fftSize * fftCount * channelCount;
     float* result = new float[resultLen];
 

@@ -28,7 +28,7 @@ public:
         this->step = step;
         this->filterLen = filterLen;
         this->filterTaps = filterTaps;
-        unsigned fftCount = ((signalLen - filterLen) / (step)) + 1;
+        unsigned fftCount = signalLen / step;
         this->resultLen = 2 * fftSize * fftCount * channelCount;
         this->threadsPerBlock = threadsPerBlock;
 
@@ -56,8 +56,6 @@ public:
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
-
-        //this->dev_filterTaps = dev_filterTaps;
 
         cufftComplex* phaseFactors = new cufftComplex[fftCount * fftSize];
 

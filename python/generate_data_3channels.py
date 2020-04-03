@@ -7,10 +7,10 @@ from scipy import signal as sp
 metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
-signalLen = 2000000
+signalLen = 10000000
 fft_size = 1024
 filterLen = fft_size * 16
-step = 1000
+step = 2000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))
@@ -24,7 +24,7 @@ taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = 2*ch.complex_chirp(n, -0.0001*signalLen, 1, 0.0001*signalLen) + 10*ch.complex_chirp(n, (0.5-0.0002)*signalLen, 1, (0.5+0.0002)*signalLen)
+signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 10*ch.complex_chirp(n, (0.5-0.0002)*signalLen, 1, (0.5+0.0002)*signalLen)
 signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
 signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 
@@ -44,7 +44,9 @@ for i in range(signalLen):
     
 np.asarray(vector).tofile("../python/files/signal")
 
-#plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen))
+# plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen), scale = "dB")
+# plt.xlim((0, 20*f_cutoff))
+# plt.ylim((-200, -80))
 # for i in range(len(signals)):
 #     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
 #     fig.suptitle("signal #" + str(i+1)) 
