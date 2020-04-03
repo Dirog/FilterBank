@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <cufft.h>
+#include <math.h>
 #include "filterbank.hpp"
 #include "fb_multi_channel_Impl.cuh"
 
@@ -12,13 +13,14 @@ private:
     unsigned fftSize;
     unsigned step;
     unsigned filterLen;
-    unsigned threads_per_block;
+    unsigned threadsPerBlock;
     float* filterTaps;
     float* dev_filterTaps;
+    cufftComplex* dev_phaseFactors;
     cufftHandle plan;
 
 public:
-    filterbank_impl(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threads_per_block)
+    filterbank_impl(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock)
     {
         this->signalLen = signalLen;
         this->channelCount = channelCount;
@@ -28,7 +30,7 @@ public:
         this->filterTaps = filterTaps;
         unsigned fftCount = ((signalLen - filterLen) / (step)) + 1;
         this->resultLen = 2 * fftSize * fftCount * channelCount;
-        this->threads_per_block = threads_per_block;
+        this->threadsPerBlock = threadsPerBlock;
 
         cufftHandle plan;
         int * nx = new int(fftSize);
@@ -47,15 +49,29 @@ public:
         cudaError_t cudaStatus;
         cudaStatus = cudaMalloc((float**)&dev_filterTaps, filterLen * sizeof(float));
         if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaMalloc failed! 3\n");
+            fprintf(stderr, "cudaMalloc failed!\n");
         }
 
         cudaStatus = cudaMemcpy(dev_filterTaps, filterTaps, filterLen * sizeof(float), cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaMemcpy failed! 6\n");
+            fprintf(stderr, "cudaMemcpy failed!\n");
         }
 
-        this->dev_filterTaps = dev_filterTaps;
+        //this->dev_filterTaps = dev_filterTaps;
+
+        cufftComplex* phaseFactors = new cufftComplex[fftCount * fftSize];
+
+        getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
+
+        cudaStatus = cudaMalloc((void**)&dev_phaseFactors, fftCount * fftSize * sizeof(cufftComplex));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc failed!\n");
+        }
+
+        cudaStatus = cudaMemcpy(dev_phaseFactors, phaseFactors, fftCount * fftSize * sizeof(cufftComplex), cudaMemcpyHostToDevice);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemcpy failed!\n");
+        }
     }
 
     ~filterbank_impl()
@@ -65,15 +81,29 @@ public:
     }
 
     int execute(float * inSignal, float * result){
-        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount, result, resultLen, threads_per_block, plan);
+        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount, result, resultLen, threadsPerBlock, plan, dev_phaseFactors);
+    }
+
+    int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen){
+        const float PI = 3.1415927;
+        for (unsigned k = 0; k < fftCount; ++k)
+        {
+            for (unsigned f = 0; f < fftSize; ++f)
+            {
+                float arg = -2 * PI * f * k * fftCount / signalLen;
+                result[k*fftSize + f].x = cosf(arg);
+                result[k*fftSize + f].y = sinf(arg);
+            }
+        }
+        return 0;
     }
 };
 
 
 
 
-filterbank::filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threads_per_block)
-                        : impl(new filterbank_impl(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threads_per_block))
+filterbank::filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock)
+                        : impl(new filterbank_impl(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock))
 {
     this->signalLen = signalLen;
     this->channelCount = channelCount;
@@ -88,7 +118,7 @@ filterbank::~filterbank()
 
 unsigned * filterbank::getOutDim()
 {
-    return new unsigned[3] {signalLen, channelCount, fftSize};
+    return new unsigned[3] {signalLen, channelCount, fftSize}; //?
 }
 
 int filterbank::execute(float * inSignal, float * result)

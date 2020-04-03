@@ -18,11 +18,6 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, fl
     unsigned index = (batch_index * step + h_index) * channelCount;
     unsigned res_index = batch_index * fftSize + f_index;
 
-
-    // float arg = -2*M_PI*step*batch_index / fftSize;
-    // float rotateRe = cosf(arg);
-    // float rotateIm = sinf(arg);
-
     float tap = filterTaps[h_index];
     for (unsigned i = 0; i < channelCount; ++i)
     {
@@ -32,11 +27,32 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, fl
     }
 }
 
+__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftCount, unsigned fftSize)
+{
+    unsigned k  = threadIdx.x + blockDim.x * blockIdx.x;
+    unsigned f  = threadIdx.y + blockDim.y * blockIdx.y;
+
+    if(k < fftCount && f < fftSize)
+    {
+        unsigned tensor_index = k*fftSize + f;
+        unsigned factor_index = k*fftSize + f;
+
+        float a = tensor[tensor_index].x;
+        float b = tensor[tensor_index].y;
+        float c = factors[factor_index].x;
+        float d = factors[factor_index].y;
+        float re = a*c - b*d;
+        float im = b*c + a*d;
+        tensor[tensor_index].x = tensor[tensor_index].x * re;
+        tensor[tensor_index].y = tensor[tensor_index].y * im;
+    }
+}
+
 
 
 int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
                 unsigned fftSize, unsigned step, unsigned channelCount, float* result,
-                unsigned long resultLen, unsigned threads_per_block, cufftHandle plan)
+                unsigned long resultLen, unsigned threads_per_block, cufftHandle plan, cufftComplex* dev_phaseFactors)
 {
     if (threads_per_block > fftSize){
         threads_per_block = fftSize;
@@ -85,7 +101,7 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
 
     cudaStatus = cudaMalloc((float**)&dev_tensor, resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed! 2\n");
+        fprintf(stderr, "cudaMalloc failed! 3\n");
         return cudaStatus;
     }
 
@@ -113,6 +129,9 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
                                                           dev_filterTaps, step, filterLen,
                                                           channelCount, fftSize);
 
+    dim3 threadsInBlock (32, 32);
+    dim3 blocksPerGrid(1024, 1024); //Временно
+
     for (int i = 0; i < channelCount; ++i)
     {
         cufftStatus = cufftExecC2C(plan, dev_result + i, dev_tensor + i*(fftSize*fftCount), CUFFT_FORWARD);
@@ -120,6 +139,8 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
             fprintf(stderr, "cufftExecC2C failed. Error code %d!\n", cufftStatus);
             return cudaErrorUnknown;
         }
+
+        multiply <<<blocksPerGrid, threadsInBlock>>> (dev_tensor + i*fftSize*fftCount, dev_phaseFactors, fftCount, fftSize);
     }
     
     cudaEventRecord(stop);
@@ -151,12 +172,4 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
     cudaFree(dev_tensor);
 
     return cudaStatus;
-}
-
-
-__inline__ __device__ cufftComplex operator + (cufftComplex const& a, cufftComplex const& b) {
-    cufftComplex c;
-    c.x = a.x + b.x;
-    c.y = a.y + b.y;
-    return c;
 }
