@@ -10,7 +10,7 @@ channelCount = 3
 signalLen = 10000000
 fft_size = 1024
 filterLen = fft_size * 16
-step = 20000
+step = 10000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))
@@ -24,7 +24,7 @@ taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.7-0.00001)*signalLen, 1, (0.7+0.00001)*signalLen)
+signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.71-0.00004)*signalLen, 1, (0.71+0.00001)*signalLen)
 signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
 signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 
@@ -44,13 +44,13 @@ for i in range(signalLen):
     
 np.asarray(vector).tofile("../python/files/signal")
 
-# plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen), scale = "dB")
-# plt.xlim((0, 20*f_cutoff))
-# plt.ylim((-200, -80))
-# for i in range(len(signals)):
-#     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
-#     fig.suptitle("signal #" + str(i+1)) 
-#     axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
-#     axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
+#plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen), scale = "dB")
+plt.xlim((0, 20*f_cutoff))
+plt.ylim((-200, -80))
+for i in range(len(signals)):
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+    fig.suptitle("signal #" + str(i+1)) 
+    axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen), scale = "dB")
+    axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
 
-# plt.show()
+plt.show()

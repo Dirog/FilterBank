@@ -27,19 +27,23 @@ int main() {
 
     printf("C = %d, N = %d, T = %d, F = %d, K = %d, fft count = %d\n", channelCount, signalLen, filterLen, fftSize, step, fftCount);
 
-    float * inSignal = new float[2*signalLen * channelCount];
+    float * inSignal = new float[2 * signalLen * channelCount];
     float filterTaps[filterLen];
-
 
     readVectorFromFile("../python/files/signal", inSignal, 2 * signalLen * channelCount);
     readVectorFromFile("../python/files/taps", filterTaps, filterLen);
 
+    int threadsPerBlock = 128;
+    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock);
 
-    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 128);
     int status;
     status = fb.execute(inSignal, result);
 
     writeVectorToFile("../python/files/result", result, resultLen);
+
+    if(status == 0){
+        printf("Success\n");
+    }
 
     // unsigned * dims;
     // dims = fb.getOutDim();
@@ -51,7 +55,7 @@ void readMetadataFromFile(const char* fileName, unsigned* result) {
     FILE* file;
     file = fopen(fileName, "r");
     if (file == NULL) {
-        printf("Error reading file!!\n");
+        printf("Error reading file!\n");
         return;
     }
     for (int m = 0; m < 5; ++m) {

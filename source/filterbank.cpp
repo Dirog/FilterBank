@@ -62,7 +62,7 @@ public:
 
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
 
-        cudaStatus = cudaMalloc((void**)&dev_phaseFactors, fftCount * fftSize * sizeof(cufftComplex));
+        cudaStatus = cudaMallocManaged((void**)&dev_phaseFactors, fftCount * fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
@@ -81,6 +81,10 @@ public:
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemset failed!\n");
         }
+
+        this->dev_history = dev_history;
+        this->dev_phaseFactors = dev_phaseFactors;
+        float* factors = reinterpret_cast<float*>(this->dev_phaseFactors);
     }
 
     ~filterbank_impl()

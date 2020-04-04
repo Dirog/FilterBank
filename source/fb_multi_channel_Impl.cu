@@ -48,15 +48,12 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
         tensor[index].x = re;
         tensor[index].y = im;
     }
-    else printf("!!!\n");
 }
 
 int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
                 unsigned fftSize, unsigned step, unsigned channelCount, float* result,
                 unsigned long resultLen, unsigned threads_per_block, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history)
 {
-printf("resultLen = %d\n", resultLen / 2);
-
     if (threads_per_block > fftSize){
         threads_per_block = fftSize;
     }
@@ -64,8 +61,6 @@ printf("resultLen = %d\n", resultLen / 2);
     unsigned historyLen = filterLen - 1;
     unsigned newSignalLen = signalLen + historyLen;
     unsigned fftCount = signalLen / step;
-
-    printf("new matrixSize  = %d\n", newSignalLen*channelCount);
 
     cufftResult cufftStatus;
 
@@ -75,8 +70,7 @@ printf("resultLen = %d\n", resultLen / 2);
 
     unsigned num_Blocks;
     num_Blocks = fftCount * ceil((double)filterLen / threads_per_block);
-    printf("threads_per_block %d, num_Blocks %d\n", threads_per_block, num_Blocks);
-    
+
     cudaError_t cudaStatus;
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
@@ -135,7 +129,7 @@ printf("resultLen = %d\n", resultLen / 2);
         }
     }
 
-    num_Blocks = ceil(0.5*resultLen / threads_per_block);
+    num_Blocks = ceil(0.5 * resultLen / threads_per_block);
 
     multiply <<<num_Blocks, threads_per_block>>> (dev_tensor, dev_phaseFactors, fftCount, fftSize, channelCount, resultLen/2);
 
