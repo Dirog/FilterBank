@@ -10,7 +10,7 @@ channelCount = 3
 signalLen = 10000000
 fft_size = 1024
 filterLen = fft_size * 16
-step = 2000
+step = 20000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))

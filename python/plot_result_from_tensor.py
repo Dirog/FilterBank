@@ -104,7 +104,7 @@ def plotTimeAndFreqDomain(tensor):
                 f_phs_ax = fig.add_subplot(gs[2:, 1:])
                 f_phs_ax.set_title('Phase spectrum')
 
-                f_spec_ax.magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+                f_spec_ax.magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count), scale="dB")
                 f_phs_ax.phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
 
                 f_re_ax.plot(np.real(tensorSlice))

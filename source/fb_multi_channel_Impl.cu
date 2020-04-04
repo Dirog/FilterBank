@@ -31,24 +31,24 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, fl
     }
 }
 
-__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftCount, unsigned fftSize)
+__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftCount, unsigned fftSize, unsigned channelCount, unsigned tensorlen)
 {
-    unsigned x  = threadIdx.x + blockDim.x * blockIdx.x;
-    unsigned y  = threadIdx.y + blockDim.y * blockIdx.y;
-    unsigned k = x % fftCount;
-    unsigned f = y % fftSize;
+    unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
 
-    unsigned tensor_index = x*fftSize + y;
-    unsigned factor_index = k*fftSize + f;
+    if(index < tensorlen)
+    {
+        unsigned factor_index = index % fftCount*fftSize;
 
-    float a = tensor[tensor_index].x;
-    float b = tensor[tensor_index].y;
-    float c = factors[factor_index].x;
-    float d = factors[factor_index].y;
-    float re = a*c - b*d;
-    float im = b*c + a*d;
-    tensor[tensor_index].x = re;
-    tensor[tensor_index].y = im;
+        float a = tensor[index].x;
+        float b = tensor[index].y;
+        float c = factors[factor_index].x;
+        float d = factors[factor_index].y;
+        float re = a*c - b*d;
+        float im = b*c + a*d;
+        tensor[index].x = re;
+        tensor[index].y = im;
+    }
+    else printf("!!!\n");
 }
 
 int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
@@ -61,8 +61,6 @@ printf("resultLen = %d\n", resultLen / 2);
         threads_per_block = fftSize;
     }
 
-    // unsigned zerosToPad = filterLen - 1;
-    // printf("Zeros to pad: %d\n", zerosToPad);
     unsigned historyLen = filterLen - 1;
     unsigned newSignalLen = signalLen + historyLen;
     unsigned fftCount = signalLen / step;
@@ -76,7 +74,7 @@ printf("resultLen = %d\n", resultLen / 2);
     cufftComplex* dev_tensor;
 
     unsigned num_Blocks;
-    num_Blocks = fftCount* ceil((double)filterLen / threads_per_block);
+    num_Blocks = fftCount * ceil((double)filterLen / threads_per_block);
     printf("threads_per_block %d, num_Blocks %d\n", threads_per_block, num_Blocks);
     
     cudaError_t cudaStatus;
@@ -128,11 +126,6 @@ printf("resultLen = %d\n", resultLen / 2);
                                                           dev_filterTaps, step, filterLen,
                                                           channelCount, fftSize, signalLen*channelCount, filterLen / threads_per_block);
 
-    unsigned threads = (int)sqrt(threads_per_block);
-    unsigned blocks = (int)sqrt(resultLen / 2 / threads_per_block);
-    dim3 threadsInBlock (threads, threads);
-    dim3 blocksPerGrid(blocks, blocks);
-
     for (int i = 0; i < channelCount; ++i)
     {
         cufftStatus = cufftExecC2C(plan, dev_result + i, dev_tensor + i*(fftSize*fftCount), CUFFT_FORWARD);
@@ -141,8 +134,10 @@ printf("resultLen = %d\n", resultLen / 2);
             return cudaErrorUnknown;
         }
     }
-    
-    //multiply <<<blocksPerGrid, threadsInBlock>>> (dev_tensor, dev_phaseFactors, fftCount, fftSize);
+
+    num_Blocks = ceil(0.5*resultLen / threads_per_block);
+
+    multiply <<<num_Blocks, threads_per_block>>> (dev_tensor, dev_phaseFactors, fftCount, fftSize, channelCount, resultLen/2);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
