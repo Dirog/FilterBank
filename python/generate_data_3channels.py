@@ -24,7 +24,7 @@ taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 10*ch.complex_chirp(n, (0.5-0.0002)*signalLen, 1, (0.5+0.0002)*signalLen)
+signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.7-0.00001)*signalLen, 1, (0.7+0.00001)*signalLen)
 signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
 signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 
@@ -53,4 +53,4 @@ np.asarray(vector).tofile("../python/files/signal")
 #     axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
 #     axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
 
-plt.show()
+# plt.show()

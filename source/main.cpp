@@ -31,11 +31,11 @@ int main() {
     float filterTaps[filterLen];
 
 
-    readVectorFromFile("../python/files/signal", inSignal, 2*signalLen * channelCount);
+    readVectorFromFile("../python/files/signal", inSignal, 2 * signalLen * channelCount);
     readVectorFromFile("../python/files/taps", filterTaps, filterLen);
 
 
-    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 1024);
+    filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, 128);
     int status;
     status = fb.execute(inSignal, result);
 

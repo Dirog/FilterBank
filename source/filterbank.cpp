@@ -17,6 +17,7 @@ private:
     float* filterTaps;
     float* dev_filterTaps;
     cufftComplex* dev_phaseFactors;
+    cufftComplex* dev_history;
     cufftHandle plan;
 
 public:
@@ -70,16 +71,28 @@ public:
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
+
+        cudaStatus = cudaMalloc((void**)&dev_history, (filterLen - 1) * channelCount * sizeof(cufftComplex));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc failed!\n");
+        }
+
+        cudaStatus = cudaMemset(dev_history, 0, (filterLen - 1) * channelCount);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemset failed!\n");
+        }
     }
 
     ~filterbank_impl()
     {
+        cudaFree(dev_phaseFactors);
         cudaFree(dev_filterTaps);
+        cudaFree(dev_history);
         cufftDestroy(plan);
     }
 
     int execute(float * inSignal, float * result){
-        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount, result, resultLen, threadsPerBlock, plan, dev_phaseFactors);
+        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount, result, resultLen, threadsPerBlock, plan, dev_phaseFactors, dev_history);
     }
 
     int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen){

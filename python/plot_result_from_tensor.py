@@ -31,9 +31,9 @@ for c in range(channelCount):
 
 
 def plotSubbands(tensor, channel):
-    for i in range(tensor.shape[1]): #
+    for i in range(tensor.shape[1]): #tensor.shape[1]
         tensorSlice = tensor[:,i,channel]
-        if np.max(np.abs(tensorSlice)) > 2:
+        if np.max(np.abs(tensorSlice)) > 0:
             fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
             fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
             axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count), scale="dB")
@@ -53,7 +53,8 @@ def plotSubband(tensor, channel, subband):
 def plotSignal(tensor, channel):
     for i in range(tensor.shape[1]): #
         tensorSlice = tensor[:,i,channel]
-        if np.max(np.abs(tensorSlice)) > 2.1:
+        signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
+        if signalEnergy > 10:
             fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(7, 7))
             axes[0].plot(np.real(tensorSlice))
             axes[0].set_title("Re")
@@ -73,13 +74,62 @@ def plotSignal(tensor, channel):
             #axes[3].set_ylim((0, 30000))
             fig.tight_layout()
 
-channel = input("Enter channel number: ")
-channel = int(channel)
+def plotTimeAndFreqDomain(tensor):
+    for channel in range(channelCount):
+
+        for i in range(tensor.shape[1]): #
+            tensorSlice = tensor[:,i,channel]
+            signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
+            if signalEnergy > 50:
+
+                fig = plt.figure(constrained_layout=True)
+                fig.suptitle("subband #" + str(i + 1) + ". Channel:" + str(channel + 1)) 
+                gs = fig.add_gridspec(4, 2)
+
+                f_re_ax = fig.add_subplot(gs[0, :-1])
+                f_re_ax.set_title('Real part of the signal')
+
+                f_im_ax = fig.add_subplot(gs[1, :-1])
+                f_im_ax.set_title('Imaginary part of the signal')
+
+                f_inst_freq_ax = fig.add_subplot(gs[2, :-1])
+                f_inst_freq_ax.set_title('Instantaneous frequency')
+
+                f_inst_phs_ax = fig.add_subplot(gs[3, :-1])
+                f_inst_phs_ax.set_title('Instantaneous phase')
+
+                f_spec_ax = fig.add_subplot(gs[0:2, 1:])
+                f_spec_ax.set_title('Magnitude spectrum')
+
+                f_phs_ax = fig.add_subplot(gs[2:, 1:])
+                f_phs_ax.set_title('Phase spectrum')
+
+                f_spec_ax.magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+                f_phs_ax.phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
+
+                f_re_ax.plot(np.real(tensorSlice))
+                f_im_ax.plot(np.imag(tensorSlice))
+
+                fs = signalLen
+                analytic_signal = sp.hilbert(np.real(tensorSlice))
+                amplitude_envelope = np.abs(analytic_signal)
+                instantaneous_phase = np.unwrap(np.angle(analytic_signal))
+                instantaneous_frequency = (np.diff(instantaneous_phase) / (2.0*np.pi) * fs)
+
+                f_inst_phs_ax.plot(instantaneous_phase)
+                f_inst_freq_ax.plot(instantaneous_frequency)
+                #axes[3].set_ylim((0, 30000))
+                #fig.tight_layout()
+
+
+# channel = input("Enter channel number: ")
+# channel = int(channel)
 # subband = input("Enter subband number: ")
 # subband = int(subband)
 
-plotSubbands(tensor, channel)
+#plotSubbands(tensor, channel)
 #plotSubband(tensor, channel, subband)
 #plotSignal(tensor, channel)
+plotTimeAndFreqDomain(tensor)
 
 plt.show()
