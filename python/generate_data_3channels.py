@@ -8,7 +8,7 @@ metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
 signalLen = 10000000
-fft_size = 1024
+fft_size = 2187
 filterLen = fft_size * 16
 step = 10000
 
@@ -45,12 +45,12 @@ for i in range(signalLen):
 np.asarray(vector).tofile("../python/files/signal")
 
 #plt.magnitude_spectrum(taps, window = sp.get_window("boxcar", filterLen), scale = "dB")
-plt.xlim((0, 20*f_cutoff))
-plt.ylim((-200, -80))
-for i in range(len(signals)):
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
-    fig.suptitle("signal #" + str(i+1)) 
-    axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen), scale = "dB")
-    axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
+# plt.xlim((0, 20*f_cutoff))
+# plt.ylim((-200, -80))
+# for i in range(len(signals)):
+#     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
+#     fig.suptitle("signal #" + str(i+1)) 
+#     axes[0].magnitude_spectrum(signals[i], window = sp.get_window("boxcar", signalLen), scale = "dB")
+#     axes[1].phase_spectrum(signals[i], window = sp.get_window("boxcar", signalLen))
 
-plt.show()
+# plt.show()

@@ -5,7 +5,7 @@
 #include "filterbank.hpp"
 #include "fb_multi_channel_Impl.cuh"
 
-class filterbank::filterbank_impl{
+class Filterbank::Filterbank_impl{
 private:
     unsigned signalLen;
     unsigned long resultLen;
@@ -21,31 +21,28 @@ private:
     cufftHandle plan;
 
 public:
-    filterbank_impl(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock)
+    Filterbank_impl(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step,
+        unsigned filterLen, float* filterTaps, unsigned threadsPerBlock) :
+    signalLen(signalLen), channelCount(channelCount), fftSize(fftSize),
+    step(step), filterLen(filterLen), threadsPerBlock(threadsPerBlock)
     {
-        this->signalLen = signalLen;
-        this->channelCount = channelCount;
-        this->fftSize = fftSize;
-        this->step = step;
-        this->filterLen = filterLen;
-        this->filterTaps = filterTaps;
         unsigned fftCount = signalLen / step;
-        this->resultLen = 2 * fftSize * fftCount * channelCount;
-        this->threadsPerBlock = threadsPerBlock;
+        unsigned total_fftSize = fftCount * fftSize;
+        resultLen = total_fftSize * channelCount;
 
-        cufftHandle plan;
         int * nx = new int(fftSize);
         int idist = channelCount * fftSize;
         int odist = fftSize;
         int istride = channelCount, ostride = 1;
         int *inembed = new int(resultLen);
-        int *onembed = new int(fftSize * fftCount);
+        int *onembed = new int(total_fftSize);
         cufftResult cufftStatus;
-        cufftStatus = cufftPlanMany(&plan, 1, nx, inembed, istride, idist, onembed, ostride, odist, CUFFT_C2C, fftCount);
+        cufftStatus = cufftPlanMany(&plan, 1, nx, inembed, istride, idist,
+            onembed, ostride, odist, CUFFT_C2C, fftCount);
+
         if (cufftStatus != CUFFT_SUCCESS) {
             fprintf(stderr, "cufftPlanMany failed. Error code %d!\n", cufftStatus);
         }
-        this->plan = plan;
 
         cudaError_t cudaStatus;
         cudaStatus = cudaMalloc((float**)&dev_filterTaps, filterLen * sizeof(float));
@@ -58,16 +55,16 @@ public:
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
 
-        cufftComplex* phaseFactors = new cufftComplex[fftCount * fftSize];
-
+        cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
 
-        cudaStatus = cudaMallocManaged((void**)&dev_phaseFactors, fftCount * fftSize * sizeof(cufftComplex));
+        cudaStatus = cudaMalloc((void**)&dev_phaseFactors, total_fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
 
-        cudaStatus = cudaMemcpy(dev_phaseFactors, phaseFactors, fftCount * fftSize * sizeof(cufftComplex), cudaMemcpyHostToDevice);
+        cudaStatus = cudaMemcpy(dev_phaseFactors, phaseFactors, total_fftSize * sizeof(cufftComplex),
+            cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
@@ -81,13 +78,9 @@ public:
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemset failed!\n");
         }
-
-        this->dev_history = dev_history;
-        this->dev_phaseFactors = dev_phaseFactors;
-        float* factors = reinterpret_cast<float*>(this->dev_phaseFactors);
     }
 
-    ~filterbank_impl()
+    ~Filterbank_impl()
     {
         cudaFree(dev_phaseFactors);
         cudaFree(dev_filterTaps);
@@ -96,16 +89,16 @@ public:
     }
 
     int execute(float * inSignal, float * result){
-        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount, result, resultLen, threadsPerBlock, plan, dev_phaseFactors, dev_history);
+        return executeImpl(inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount,
+            result, resultLen, threadsPerBlock, plan, dev_phaseFactors, dev_history);
     }
 
     int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen){
-        const float PI = 3.1415927;
         for (unsigned k = 0; k < fftCount; ++k)
         {
             for (unsigned f = 0; f < fftSize; ++f)
             {
-                float arg = -2 * PI * f * k * fftCount / signalLen;
+                float arg = -2 * M_PI * f * k * fftCount / signalLen;
                 result[k*fftSize + f].x = cosf(arg);
                 result[k*fftSize + f].y = sinf(arg);
             }
@@ -114,29 +107,27 @@ public:
     }
 };
 
-
-
-
-filterbank::filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock)
-                        : impl(new filterbank_impl(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock))
+Filterbank::Filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize,
+    unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock) :
+    impl(new Filterbank_impl(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock)),
+    signalLen(signalLen), channelCount(channelCount), fftSize(fftSize),
+    step(step), filterLen(filterLen), threadsPerBlock(threadsPerBlock)
 {
-    this->signalLen = signalLen;
-    this->channelCount = channelCount;
-    this->fftSize = fftSize;
+
 }
 
-filterbank::~filterbank()
+Filterbank::~Filterbank()
 {
     delete impl;
     impl = 0;
 }
 
-unsigned * filterbank::getOutDim()
+unsigned * Filterbank::getOutDim()
 {
     return new unsigned[3] {signalLen, channelCount, fftSize}; //?
 }
 
-int filterbank::execute(float * inSignal, float * result)
+int Filterbank::execute(float * inSignal, float * result)
 {
     return impl->execute(inSignal, result);
 }

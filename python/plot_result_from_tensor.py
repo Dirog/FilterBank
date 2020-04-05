@@ -81,6 +81,7 @@ def plotTimeAndFreqDomain(tensor):
             tensorSlice = tensor[:,i,channel]
             signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
             if signalEnergy > 50:
+                print(signalEnergy)
 
                 fig = plt.figure(constrained_layout=True)
                 fig.suptitle("subband #" + str(i + 1) + ". Channel:" + str(channel + 1)) 
