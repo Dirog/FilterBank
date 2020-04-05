@@ -53,15 +53,15 @@ int main() {
 
     if (status == 0 && writeStatus == 0){
         printf("Success\n");
-        return 0;
     }
     else{
         return -1;
     }
 
-    // unsigned * dims;
-    // dims = fb.getOutDim();
-    // printf("%d, %d, %d\n", dims[0], dims[1], dims[2]);
+    auto [x, y, z] = fb.getOutDim(); 
+
+    printf("x = %d, y = %d, z = %d\n", x, y, z);
+    return 0;
 }
 
 int readMetadataFromFile(const char* fileName, unsigned* result) {

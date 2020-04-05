@@ -1,3 +1,5 @@
+#include <tuple>
+
 class Filterbank
 {
 private:
@@ -17,6 +19,6 @@ public:
     
     ~Filterbank();
 
-    unsigned * getOutDim();
+    std::tuple<unsigned, unsigned, unsigned> getOutDim();
     int execute(float * inSignal, float * outSignal);
 };

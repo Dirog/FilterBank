@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <math.h>
+#include <tuple>
 #include "filterbank.hpp"
 #include "fb_multi_channel_Impl.cuh"
 
@@ -122,9 +123,9 @@ Filterbank::~Filterbank()
     impl = 0;
 }
 
-unsigned * Filterbank::getOutDim()
+std::tuple<unsigned, unsigned, unsigned> Filterbank::getOutDim()
 {
-    return new unsigned[3] {signalLen, channelCount, fftSize}; //?
+  return {signalLen / step, channelCount, fftSize}; //??
 }
 
 int Filterbank::execute(float * inSignal, float * result)
