@@ -2,10 +2,11 @@
 #include <vector>
 #include <fstream>
 #include <iostream>
+#include <cuda_runtime.h>
 #include "filterbank.hpp"
 
-int readVectorFromFile(const char * filePath, float * result, unsigned len);
-int writeVectorToFile(const char * filePath, float * vector, unsigned long len);
+int readVectorFromFile(const char* filePath, float* dev_vector, unsigned len);
+int writeVectorToFile(const char* filePath, float* dev_vector, unsigned long len);
 int readMetadataFromFile(const char* fileName, unsigned* result);
 
 
@@ -24,32 +25,51 @@ int main() {
     const unsigned step = metadata[4];
 
     unsigned fftCount = signalLen / step;
-    const unsigned long resultLen = 2 * fftSize * fftCount * channelCount;
-    float* result = new float[resultLen];
+    const unsigned long resultLen = fftSize * fftCount * channelCount;
+    const unsigned total_signalLen = signalLen * channelCount;
+    float* dev_filterTaps;
+    float* dev_inSignal;
+    float* dev_result;
+
+    cudaError_t cudaStatus;
+    cudaStatus = cudaMalloc((float**)&dev_result, 2 * resultLen * sizeof(float));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!\n");
+        return -1;
+    }
+
+    cudaStatus = cudaMalloc((float**)&dev_inSignal, 2 * total_signalLen * sizeof(float));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!\n");
+        return -1;
+    }
+
+    cudaStatus = cudaMalloc((float**)&dev_filterTaps, filterLen * sizeof(float));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!\n");
+        return -1;
+    }
 
 
     printf("C = %d, N = %d, T = %d, F = %d, K = %d, fft count = %d\n",
         channelCount, signalLen, filterLen, fftSize, step, fftCount);
 
-    float * inSignal = new float[2 * signalLen * channelCount];
-    float filterTaps[filterLen];
-
     int signalStatus;
     int tapsStatus;
-    signalStatus = readVectorFromFile("../python/files/signal", inSignal, 2 * signalLen * channelCount);
-    tapsStatus = readVectorFromFile("../python/files/taps", filterTaps, filterLen);
+    signalStatus = readVectorFromFile("../python/files/signal", dev_inSignal, 2 * total_signalLen);
+    tapsStatus = readVectorFromFile("../python/files/taps", dev_filterTaps, filterLen);
     if (signalStatus != 0 || tapsStatus != 0){
         return -1;
     }
 
     int threadsPerBlock = 128;
-    Filterbank fb(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock);
+    Filterbank fb(signalLen, channelCount, fftSize, step, filterLen, dev_filterTaps, threadsPerBlock);
 
     int status;
-    status = fb.execute(inSignal, result);
+    status = fb.execute(dev_inSignal, dev_result);
 
     int writeStatus;
-    writeStatus = writeVectorToFile("../python/files/result", result, resultLen);
+    writeStatus = writeVectorToFile("../python/files/result", dev_result, 2 * resultLen);
 
     if (status == 0 && writeStatus == 0){
         printf("Success\n");
@@ -61,6 +81,9 @@ int main() {
     auto [x, y, z] = fb.getOutDim(); 
 
     printf("x = %d, y = %d, z = %d\n", x, y, z);
+
+    cudaFree(dev_result);
+    cudaFree(dev_inSignal);
     return 0;
 }
 
@@ -79,7 +102,9 @@ int readMetadataFromFile(const char* fileName, unsigned* result) {
     return 0;
 }
 
-int readVectorFromFile(const char * filePath, float * result, unsigned len){
+int readVectorFromFile(const char* filePath, float* dev_vector, unsigned len){
+    float* vector = new float[len];
+
     using namespace std;
     ifstream rf(filePath, ios::out | ios::binary);
     if(!rf) {
@@ -88,17 +113,33 @@ int readVectorFromFile(const char * filePath, float * result, unsigned len){
     }
 
     for(int i = 0; i < len; i++)
-        rf.read((char *) &result[i], sizeof(float));
+        rf.read((char *) &vector[i], sizeof(float));
 
     rf.close();
     if(!rf.good()) {
         cerr << "Error occurred at reading time!" << endl;
         return -1;
     }
+
+    cudaError_t cudaStatus;
+    cudaStatus = cudaMemcpy(dev_vector, vector, len * sizeof(float), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!!\n");
+        return -1;
+    }
+
     return 0;
 }
 
-int writeVectorToFile(const char * filePath, float * vector, unsigned long len){
+int writeVectorToFile(const char* filePath, float* dev_vector, unsigned long len){
+    float* vector = new float[len];
+    cudaError_t cudaStatus;
+    cudaStatus = cudaMemcpy(vector, dev_vector, len * sizeof(float), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!\n");
+        return -1;
+    }
+
     using namespace std;
     ofstream wf(filePath, ios::out | ios::binary);
     if(!wf) {

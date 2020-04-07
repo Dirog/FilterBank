@@ -8,8 +8,8 @@ metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
 signalLen = 10000000
-fft_size = 2187
-filterLen = fft_size * 16
+fft_size = 2401
+filterLen = fft_size * 13
 step = 10000
 
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
@@ -25,7 +25,7 @@ taps = taps[::-1]
 taps = taps.astype("float32")
 
 signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.71-0.00004)*signalLen, 1, (0.71+0.00001)*signalLen)
-signal2 = 2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
+signal2 = np.zeros(signalLen)#2*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
 signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00001)*signalLen)
 
 signal1 = signal1.astype("complex64")

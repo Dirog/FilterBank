@@ -7,9 +7,9 @@
 #include "fb_multi_channel_Impl.cuh"
 #include "filterbank.hpp"
 
-__global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec,
+__global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cufftComplex* history,
     float* filterTaps, unsigned step, unsigned channelCount, unsigned fftSize,
-    unsigned totalSignalLen, unsigned sub_batch_count)
+    unsigned totalSignalLen, unsigned total_historyLen, unsigned sub_batch_count)
 {
     unsigned sub_batch_index = blockIdx.x % sub_batch_count;
     unsigned h_index = sub_batch_index * blockDim.x + threadIdx.x;
@@ -24,10 +24,15 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec,
         unsigned new_res_index = channelCount * res_index + i;
         unsigned signal_index = index + i;
 
-        if(signal_index < totalSignalLen)
+        if (signal_index < total_historyLen)
         {
-            atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index].x);
-            atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index].y);
+            atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
+            atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
+        }
+        else if(signal_index < totalSignalLen)
+        {
+            atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
+            atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
         }
     }
 }
@@ -50,8 +55,8 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors,
     }
 }
 
-int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
-    unsigned fftSize, unsigned step, unsigned channelCount, float* result, unsigned long resultLen,
+int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
+    unsigned fftSize, unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,
     unsigned threads_per_block, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history)
 {
     if (threads_per_block > fftSize){
@@ -59,18 +64,14 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
     }
 
     unsigned historyLen = filterLen - 1;
-    unsigned newSignalLen = signalLen + historyLen;
     unsigned total_historyLen = historyLen * channelCount;
     unsigned total_signalLen = signalLen * channelCount;
     unsigned fftCount = signalLen / step;
     unsigned total_fftSize = fftCount * fftSize;
-
-    float* dev_inSignal;
-    cufftComplex* dev_result;
     cufftComplex* dev_tensor;
 
     unsigned num_Blocks;
-    num_Blocks = fftCount * ceil((double)filterLen / threads_per_block);
+    num_Blocks = fftCount * ceil((float)filterLen / threads_per_block);
 
     cudaError_t cudaStatus;
     cudaStatus = cudaSetDevice(0);
@@ -79,34 +80,9 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
         return cudaStatus;
     }
 
-    cudaStatus = cudaMalloc((float**)&dev_inSignal, 2 * newSignalLen * channelCount * sizeof(float));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed! 1\n");
-        return cudaStatus;
-    }
-
-    cudaStatus = cudaMalloc((float**)&dev_result, 2 * resultLen * sizeof(float));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed! 2\n");
-        return cudaStatus;
-    }
-
     cudaStatus = cudaMalloc((float**)&dev_tensor, 2 * resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed! 3\n");
-        return cudaStatus;
-    }
-
-    cudaStatus = cudaMemcpy(dev_inSignal, dev_history, 2 * total_historyLen * sizeof(float), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed! 4\n");
-        return cudaStatus;
-    }
-
-    cudaStatus = cudaMemcpy(dev_inSignal + 2 * total_historyLen, inSignal, 2 * total_signalLen * sizeof(float),
-        cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed! 5\n");
+        fprintf(stderr, "cudaMalloc failed!\n");
         return cudaStatus;
     }
 
@@ -116,14 +92,15 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
     cudaEventRecord(start);
 
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
+    cufftComplex* dev_complexResult = reinterpret_cast<cufftComplex*>(dev_result);
 
-    multiplyAndSum <<<num_Blocks, threads_per_block >>> (dev_inComplexSignal, dev_result,dev_filterTaps,
-        step, channelCount, fftSize, total_signalLen, filterLen / threads_per_block);
+    multiplyAndSum <<<num_Blocks, threads_per_block >>> (dev_inComplexSignal, dev_tensor, dev_history, dev_filterTaps,
+        step, channelCount, fftSize, total_signalLen, total_historyLen, filterLen / threads_per_block);
 
     cufftResult cufftStatus;
     for (int i = 0; i < channelCount; ++i)
     {
-        cufftStatus = cufftExecC2C(plan, dev_result + i, dev_tensor + i * total_fftSize, CUFFT_FORWARD);
+        cufftStatus = cufftExecC2C(plan, dev_tensor + i, dev_complexResult + i * total_fftSize, CUFFT_FORWARD);
         if (cufftStatus != CUFFT_SUCCESS) {
             fprintf(stderr, "cufftExecC2C failed. Error code %d!\n", cufftStatus);
             return cudaErrorUnknown;
@@ -131,7 +108,8 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
     }
 
     num_Blocks = ceil(resultLen / threads_per_block);
-    multiply <<<num_Blocks, threads_per_block>>> (dev_tensor, dev_phaseFactors, total_fftSize, resultLen);
+    multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, total_fftSize, resultLen);
+    dev_result = reinterpret_cast<float*>(dev_complexResult);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -155,19 +133,10 @@ int executeImpl(float* inSignal, unsigned signalLen, float* dev_filterTaps, unsi
     cudaStatus = cudaMemcpy(dev_history, dev_inSignal + endPos, total_historyLen * sizeof(cufftComplex),
         cudaMemcpyDeviceToDevice);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed! 6\n");
+        fprintf(stderr, "cudaMemcpy failed!\n");
         return cudaStatus;
     }
 
-    cudaStatus = cudaMemcpy(result, reinterpret_cast<float*>(dev_tensor), 2 * resultLen * sizeof(float),
-        cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed! 7\n");
-        return cudaStatus;
-    }
-
-    cudaFree(dev_inSignal);
-    cudaFree(dev_result);
     cudaFree(dev_tensor);
 
     return cudaStatus;

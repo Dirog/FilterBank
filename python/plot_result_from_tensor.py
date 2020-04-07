@@ -29,7 +29,6 @@ for c in range(channelCount):
             tensor[n, f, c] = complex(float(vector[2*i]), float(vector[2*i+1]))
             i = i + 1
 
-
 def plotSubbands(tensor, channel):
     for i in range(tensor.shape[1]): #tensor.shape[1]
         tensorSlice = tensor[:,i,channel]
