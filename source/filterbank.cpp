@@ -13,6 +13,12 @@ public:
     signalLen(signalLen), channelCount(channelCount), fftSize(fftSize), step(step),
     filterLen(filterLen), threadsPerBlock(threadsPerBlock), dev_filterTaps(dev_filterTaps)
     {
+        cudaError_t cudaStatus;
+        cudaStatus = cudaSetDevice(0);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaSetDevice failed! Do you have a CUDA-capable GPU installed?\n");
+        }
+
         unsigned fftCount = signalLen / step;
         unsigned total_fftSize = fftCount * fftSize;
         resultLen = total_fftSize * channelCount;
@@ -34,7 +40,6 @@ public:
         cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
 
-        cudaError_t cudaStatus;
         cudaStatus = cudaMalloc((void**)&dev_phaseFactors, total_fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
@@ -55,6 +60,8 @@ public:
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemset failed!\n");
         }
+
+        packetIndex = 0;
     }
 
     ~Filterbank_impl()
@@ -66,8 +73,12 @@ public:
     }
 
     int execute(float * dev_inSignal, float * dev_result){
-        return executeImpl(dev_inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount,
-            dev_result, resultLen, threadsPerBlock, plan, dev_phaseFactors, dev_history);
+        int status;
+        status = executeImpl(dev_inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount,
+            dev_result, resultLen, threadsPerBlock, packetIndex, plan, dev_phaseFactors, dev_history);
+
+        packetIndex++;
+        return status;
     }
 
     int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen){
@@ -91,6 +102,7 @@ private:
     unsigned step;
     unsigned filterLen;
     unsigned threadsPerBlock;
+    unsigned packetIndex;
     float* filterTaps;
     float* dev_filterTaps;
     cufftComplex* dev_phaseFactors;
@@ -113,9 +125,9 @@ Filterbank::~Filterbank()
     impl = 0;
 }
 
-std::tuple<unsigned, unsigned, unsigned> Filterbank::getOutDim()
+int Filterbank::getOutDim()
 {
-  return {signalLen / step, channelCount, fftSize}; //??
+  return -1; //TO DO
 }
 
 int Filterbank::execute(float* dev_inSignal, float* dev_result)

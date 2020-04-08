@@ -32,7 +32,7 @@ signal1 = signal1.astype("complex64")
 signal2 = signal2.astype("complex64")
 signal3 = signal3.astype("complex64")
 
-signals = [signal1, signal2, signal3]
+#signals = [signal1, signal2, signal3]
 
 np.asarray(taps).tofile("../python/files/taps")
 

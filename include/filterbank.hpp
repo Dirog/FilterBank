@@ -8,7 +8,7 @@ public:
     
     ~Filterbank();
 
-    std::tuple<unsigned, unsigned, unsigned> getOutDim();
+    int getOutDim();
     int execute(float * inSignal, float * outSignal);
     
 private:

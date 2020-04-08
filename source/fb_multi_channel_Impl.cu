@@ -7,6 +7,13 @@
 #include "fb_multi_channel_Impl.cuh"
 #include "filterbank.hpp"
 
+__inline__ __device__ cufftComplex operator * (cufftComplex const& a, cufftComplex const& b) {
+    cufftComplex c;
+    c.x = a.x * b.x - a.y * b.y;
+    c.y = a.x * b.y + a.y * b.x;
+    return c;
+}
+
 __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cufftComplex* history,
     float* filterTaps, unsigned step, unsigned channelCount, unsigned fftSize,
     unsigned totalSignalLen, unsigned total_historyLen, unsigned sub_batch_count)
@@ -37,27 +44,28 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
     }
 }
 
-__global__ void multiply(cufftComplex* tensor, cufftComplex* factors,
-    unsigned total_fftSize, unsigned tensorlen)
+__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftSize,
+    unsigned fftCount, unsigned tensorlen, unsigned packetIndex, unsigned signalLen, unsigned filterLen)
 {
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
 
     if(index < tensorlen)
     {
-        unsigned factor_index = index % total_fftSize;
+        unsigned f = index % fftSize;
 
-        float a = tensor[index].x;
-        float b = tensor[index].y;
-        float c = factors[factor_index].x;
-        float d = factors[factor_index].y;
-        tensor[index].x = a*c - b*d;
-        tensor[index].y = b*c + a*d;
+        float arg = -2 * M_PI * f * (signalLen - filterLen + 1) * packetIndex / signalLen;
+        cufftComplex packetPhaseFactor;
+        packetPhaseFactor.x = cosf(arg);
+        packetPhaseFactor.y = sinf(arg);
+
+        unsigned factor_index = index % (fftCount * fftSize);
+        tensor[index] = tensor[index] * factors[factor_index] * packetPhaseFactor;
     }
 }
 
-int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen,
-    unsigned fftSize, unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,
-    unsigned threads_per_block, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history)
+int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen, unsigned fftSize,
+    unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,unsigned threads_per_block,
+    unsigned packetIndex, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history)
 {
     if (threads_per_block > fftSize){
         threads_per_block = fftSize;
@@ -74,12 +82,6 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     num_Blocks = fftCount * ceil((float)filterLen / threads_per_block);
 
     cudaError_t cudaStatus;
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed! Do you have a CUDA-capable GPU installed?\n");
-        return cudaStatus;
-    }
-
     cudaStatus = cudaMalloc((float**)&dev_tensor, 2 * resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
@@ -108,7 +110,8 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
     num_Blocks = ceil(resultLen / threads_per_block);
-    multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, total_fftSize, resultLen);
+    multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors,
+        fftSize, fftCount, resultLen, packetIndex, signalLen, filterLen);
     dev_result = reinterpret_cast<float*>(dev_complexResult);
 
     cudaEventRecord(stop);

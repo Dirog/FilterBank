@@ -25,4 +25,9 @@ ADD_EXECUTABLE(fb ./source/main.cpp)
  
 SET_PROPERTY(TARGET fb 
              PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+
+#SET(CMAKE_CUDA_FLAGS "$ {CMAKE_CUDA_FLAGS} -gencode arch=compute_62,code=sm_62")
+
+#SET(CMAKE_BUILD_TYPE Release)
+
 TARGET_LINK_LIBRARIES(fb PRIVATE fb_cuda)
