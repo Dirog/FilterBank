@@ -1,4 +1,3 @@
 ./build
 ./.vscode
 ./.mypy_cache
-./python/__pycache__

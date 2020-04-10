@@ -19,8 +19,7 @@ print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(fi
 
 tensor = np.zeros((count, fftSize, channelCount), dtype="complex64")
 
-vector = np.fromfile("../python/files/result", dtype="float32")
-#print(vector)
+vector = np.fromfile("../python/files/result1", dtype="float32")
 
 i = 0
 for c in range(channelCount):
@@ -30,15 +29,13 @@ for c in range(channelCount):
             i = i + 1
 
 def plotSubbands(tensor, channel):
-    for i in range(tensor.shape[1]): #tensor.shape[1]
+    for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
         if np.max(np.abs(tensorSlice)) > 0:
             fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7, 7))
             fig.suptitle("subband #" + str(i) + ". Channel:" + str(channel + 1)) 
             axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count), scale="dB")
             axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
-            #axes[0].set_ylim((0, 0.1))
-            #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 def plotSubband(tensor, channel, subband):
     tensorSlice = tensor[:,subband,channel]
@@ -46,11 +43,9 @@ def plotSubband(tensor, channel, subband):
     fig.suptitle("subband #" + str(subband) + ". Channel:" + str(channel + 1)) 
     axes[0].magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
     axes[1].phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
-    #axes[0].set_ylim((0, 0.4))
-    #fig.savefig('channel_%d_subband_%d.png' % ((channel + 1), i))
 
 def plotSignal(tensor, channel):
-    for i in range(tensor.shape[1]): #
+    for i in range(tensor.shape[1]):
         tensorSlice = tensor[:,i,channel]
         signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
         if signalEnergy > 10:
@@ -70,13 +65,12 @@ def plotSignal(tensor, channel):
             axes[2].plot(instantaneous_phase)
             axes[3].set_title("Instantaneous frequency")
             axes[3].plot(instantaneous_frequency)
-            #axes[3].set_ylim((0, 30000))
             fig.tight_layout()
 
 def plotTimeAndFreqDomain(tensor):
     for channel in range(channelCount):
 
-        for i in range(tensor.shape[1]): #
+        for i in range(tensor.shape[1]):
             tensorSlice = tensor[:,i,channel]
             signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
             if signalEnergy > 50:
@@ -104,7 +98,7 @@ def plotTimeAndFreqDomain(tensor):
                 f_phs_ax = fig.add_subplot(gs[2:, 1:])
                 f_phs_ax.set_title('Phase spectrum')
 
-                f_spec_ax.magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count), scale="dB")
+                f_spec_ax.magnitude_spectrum(tensorSlice, window = sp.get_window("boxcar", count)) #, scale="dB"
                 f_phs_ax.phase_spectrum(tensorSlice, window = sp.get_window("boxcar", count))
 
                 f_re_ax.plot(np.real(tensorSlice))
@@ -118,8 +112,6 @@ def plotTimeAndFreqDomain(tensor):
 
                 f_inst_phs_ax.plot(instantaneous_phase)
                 f_inst_freq_ax.plot(instantaneous_frequency)
-                #axes[3].set_ylim((0, 30000))
-                #fig.tight_layout()
 
 
 # channel = input("Enter channel number: ")

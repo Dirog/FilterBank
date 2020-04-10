@@ -19,7 +19,7 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
     unsigned totalSignalLen, unsigned total_historyLen, unsigned sub_batch_count)
 {
     unsigned sub_batch_index = blockIdx.x % sub_batch_count;
-    unsigned h_index = sub_batch_index * blockDim.x + threadIdx.x;
+    unsigned h_index = (sub_batch_index * blockDim.x + threadIdx.x);
     unsigned f_index = h_index % fftSize;
     unsigned batch_index = blockIdx.x / sub_batch_count;
     unsigned index = (batch_index * step + h_index) * channelCount;
@@ -36,7 +36,7 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
             atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
             atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
         }
-        else if(signal_index < totalSignalLen)
+        else if(signal_index < totalSignalLen + total_historyLen)
         {
             atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
             atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
@@ -51,15 +51,8 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
 
     if(index < tensorlen)
     {
-        unsigned f = index % fftSize;
-
-        float arg = -2 * M_PI * f * (signalLen - filterLen + 1) * packetIndex / signalLen;
-        cufftComplex packetPhaseFactor;
-        packetPhaseFactor.x = cosf(arg);
-        packetPhaseFactor.y = sinf(arg);
-
         unsigned factor_index = index % (fftCount * fftSize);
-        tensor[index] = tensor[index] * factors[factor_index] * packetPhaseFactor;
+        tensor[index] = tensor[index] * factors[factor_index];
     }
 }
 
@@ -79,7 +72,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     cufftComplex* dev_tensor;
 
     unsigned num_Blocks;
-    num_Blocks = fftCount * ceil((float)filterLen / threads_per_block);
+    num_Blocks = (fftCount) * ceil((float)filterLen / threads_per_block);
 
     cudaError_t cudaStatus;
     cudaStatus = cudaMalloc((float**)&dev_tensor, 2 * resultLen * sizeof(float));
@@ -96,8 +89,10 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
     cufftComplex* dev_complexResult = reinterpret_cast<cufftComplex*>(dev_result);
 
+        printf("%f, %f\n", dev_inComplexSignal[total_signalLen - 1].x, dev_inComplexSignal[total_signalLen - 1].y);
+
     multiplyAndSum <<<num_Blocks, threads_per_block >>> (dev_inComplexSignal, dev_tensor, dev_history, dev_filterTaps,
-        step, channelCount, fftSize, total_signalLen, total_historyLen, filterLen / threads_per_block);
+        step, channelCount, fftSize, total_signalLen, total_historyLen, ceil((float)filterLen / threads_per_block));
 
     cufftResult cufftStatus;
     for (int i = 0; i < channelCount; ++i)
@@ -109,7 +104,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
         }
     }
 
-    num_Blocks = ceil(resultLen / threads_per_block);
+    num_Blocks = ceil((float)resultLen / threads_per_block);
     multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors,
         fftSize, fftCount, resultLen, packetIndex, signalLen, filterLen);
     dev_result = reinterpret_cast<float*>(dev_complexResult);
@@ -133,7 +128,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
     unsigned endPos = total_signalLen - total_historyLen;
-    cudaStatus = cudaMemcpy(dev_history, dev_inSignal + endPos, total_historyLen * sizeof(cufftComplex),
+    cudaStatus = cudaMemcpy(dev_history, dev_inComplexSignal + endPos, total_historyLen * sizeof(cufftComplex),
         cudaMemcpyDeviceToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!\n");

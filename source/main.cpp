@@ -28,9 +28,11 @@ int main() {
     const unsigned long resultLen = fftSize * fftCount * channelCount;
     const unsigned total_signalLen = signalLen * channelCount;
     float* dev_filterTaps;
-    float* dev_inSignal;
+    float* dev_inSignal1;
+    float* dev_inSignal2;
     float* dev_result;
-    float * inSignal = new float[2 * total_signalLen];
+    float * inSignal1 = new float[2 * total_signalLen];
+    float * inSignal2 = new float[2 * total_signalLen];
     float* result = new float[2 * resultLen];
     float filterTaps[filterLen];
 
@@ -41,7 +43,12 @@ int main() {
         return -1;
     }
 
-    cudaStatus = cudaMalloc((float**)&dev_inSignal, 2 * total_signalLen * sizeof(float));
+    cudaStatus = cudaMallocManaged((float**)&dev_inSignal1, 2 * total_signalLen * sizeof(float));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!\n");
+        return -1;
+    }
+    cudaStatus = cudaMallocManaged((float**)&dev_inSignal2, 2 * total_signalLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
@@ -59,11 +66,7 @@ int main() {
 
     int signalStatus;
     int tapsStatus;
-    signalStatus = readVectorFromFile("../python/files/signal", inSignal, 2 * total_signalLen);
     tapsStatus = readVectorFromFile("../python/files/taps", filterTaps, filterLen);
-    if (signalStatus != 0 || tapsStatus != 0){
-        return -1;
-    }
 
     cudaStatus = cudaMemcpy(dev_filterTaps, filterTaps, filterLen * sizeof(float), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
@@ -74,35 +77,44 @@ int main() {
     int threadsPerBlock = 128;
     Filterbank fb(signalLen, channelCount, fftSize, step, filterLen, dev_filterTaps, threadsPerBlock);
 
-
-    cudaStatus = cudaMemcpy(dev_inSignal, inSignal, 2 * total_signalLen * sizeof(float), cudaMemcpyHostToDevice);
+    signalStatus = readVectorFromFile("../python/files/signal1", inSignal1, 2 * total_signalLen);
+    cudaStatus = cudaMemcpy(dev_inSignal1, inSignal1, 2 * total_signalLen * sizeof(float), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!!\n");
         return -1;
     }
-
     int status;
-    status = fb.execute(dev_inSignal, dev_result);
+    status = fb.execute(dev_inSignal1, dev_result);
 
     cudaStatus = cudaMemcpy(result, dev_result, 2 * resultLen * sizeof(float), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!\n");
         return -1;
     }
-
-
     int writeStatus;
-    writeStatus = writeVectorToFile("../python/files/result", result, 2 * resultLen);
+    writeStatus = writeVectorToFile("../python/files/result1", result, 2 * resultLen);
 
-    if (status == 0 && writeStatus == 0){
-        printf("Success\n");
-    }
-    else{
+
+    signalStatus = readVectorFromFile("../python/files/signal2", inSignal2, 2 * total_signalLen);
+    cudaStatus = cudaMemcpy(dev_inSignal2, inSignal2, 2 * total_signalLen * sizeof(float), cudaMemcpyHostToDevice);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!!\n");
         return -1;
     }
+    status = fb.execute(dev_inSignal2, dev_result);
+
+    cudaStatus = cudaMemcpy(result, dev_result, 2 * resultLen * sizeof(float), cudaMemcpyDeviceToHost);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMemcpy failed!\n");
+        return -1;
+    }
+    writeStatus = writeVectorToFile("../python/files/result2", result, 2 * resultLen);
+
+
 
     cudaFree(dev_result);
-    cudaFree(dev_inSignal);
+    cudaFree(dev_inSignal1);
+    cudaFree(dev_inSignal2);
     return 0;
 }
 
