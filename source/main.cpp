@@ -110,7 +110,8 @@ int main() {
     }
     writeStatus = writeVectorToFile("../python/files/result2", result, 2 * resultLen);
 
-
+    Dim* dim = fb.getOutDim();
+    printf("%d, %d, %d\n", dim->dimension[0], dim->dimension[1], dim->dimension[2]);
 
     cudaFree(dev_result);
     cudaFree(dev_inSignal1);

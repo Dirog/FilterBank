@@ -110,13 +110,18 @@ private:
     cufftHandle plan;
 };
 
+Dim::Dim(unsigned x, unsigned y, unsigned z, unsigned rank){
+    dimension = new unsigned[arrSize] {x, y, z, rank};
+}
+
 Filterbank::Filterbank(unsigned signalLen, unsigned channelCount, unsigned fftSize,
     unsigned step, unsigned filterLen, float* filterTaps, unsigned threadsPerBlock) :
     impl(new Filterbank_impl(signalLen, channelCount, fftSize, step, filterLen, filterTaps, threadsPerBlock)),
     signalLen(signalLen), channelCount(channelCount), fftSize(fftSize),
     step(step), filterLen(filterLen), threadsPerBlock(threadsPerBlock)
 {
-
+    int rank = 2;
+    dim = new Dim(signalLen / step, channelCount, fftSize, rank);
 }
 
 Filterbank::~Filterbank()
@@ -125,9 +130,9 @@ Filterbank::~Filterbank()
     impl = 0;
 }
 
-int Filterbank::getOutDim()
+Dim* Filterbank::getOutDim()
 {
-  return -1; //TO DO
+  return dim;
 }
 
 int Filterbank::execute(float* dev_inSignal, float* dev_result)

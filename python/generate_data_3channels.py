@@ -21,7 +21,7 @@ f_cutoff = 1/(fft_size)
 
 n = np.linspace(0, 1, signalLen)
 
-taps = sp.firwin(filterLen, f_cutoff, window='boxcar')
+taps = sp.firwin(filterLen, f_cutoff)
 taps = taps[::-1]
 taps = taps.astype("float32")
 

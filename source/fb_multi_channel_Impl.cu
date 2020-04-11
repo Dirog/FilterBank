@@ -51,8 +51,14 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
 
     if(index < tensorlen)
     {
+        unsigned f = index % fftSize;
+        float arg = 2 * M_PI * f * (1 - filterLen / signalLen) * packetIndex; //???
+        cufftComplex packetPhaseFactor;
+        packetPhaseFactor.x = cosf(arg);
+        packetPhaseFactor.y = sinf(arg); //TO DO: move to another kernel
+
         unsigned factor_index = index % (fftCount * fftSize);
-        tensor[index] = tensor[index] * factors[factor_index];
+        tensor[index] = tensor[index] * factors[factor_index] * packetPhaseFactor;
     }
 }
 
@@ -88,8 +94,6 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
 
     cufftComplex* dev_inComplexSignal = reinterpret_cast<cufftComplex*>(dev_inSignal);
     cufftComplex* dev_complexResult = reinterpret_cast<cufftComplex*>(dev_result);
-
-        printf("%f, %f\n", dev_inComplexSignal[total_signalLen - 1].x, dev_inComplexSignal[total_signalLen - 1].y);
 
     multiplyAndSum <<<num_Blocks, threads_per_block >>> (dev_inComplexSignal, dev_tensor, dev_history, dev_filterTaps,
         step, channelCount, fftSize, total_signalLen, total_historyLen, ceil((float)filterLen / threads_per_block));

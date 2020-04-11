@@ -1,5 +1,11 @@
 #include <tuple>
 
+struct Dim {
+    const unsigned arrSize = 4;
+    unsigned* dimension = new unsigned[arrSize];
+    Dim(unsigned x, unsigned y, unsigned z, unsigned rank);
+};
+
 class Filterbank
 {
 public:
@@ -8,7 +14,7 @@ public:
     
     ~Filterbank();
 
-    int getOutDim();
+    Dim* getOutDim();
     int execute(float * inSignal, float * outSignal);
     
 private:
@@ -18,6 +24,7 @@ private:
     unsigned step;
     unsigned filterLen;
     unsigned threadsPerBlock;
+    Dim* dim;
 
     class Filterbank_impl;
     Filterbank_impl * impl;
