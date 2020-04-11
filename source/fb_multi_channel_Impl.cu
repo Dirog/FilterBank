@@ -20,33 +20,28 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
 {
     unsigned sub_batch_index = blockIdx.x % sub_batch_count;
     unsigned h_index = (sub_batch_index * blockDim.x + threadIdx.x);
+    unsigned f_index = h_index % fftSize;
+    unsigned batch_index = blockIdx.x / sub_batch_count;
+    unsigned index = (batch_index * step + h_index) * channelCount;
+    unsigned res_index = batch_index * fftSize + f_index;
 
-    if (h_index < 28812)
+    float tap = filterTaps[h_index];
+    for (unsigned i = 0; i < channelCount; ++i)
     {
-        unsigned f_index = h_index % fftSize;
-        unsigned batch_index = blockIdx.x / sub_batch_count;
-        unsigned index = (batch_index * step + h_index) * channelCount;
-        unsigned res_index = batch_index * fftSize + f_index;
+        unsigned new_res_index = channelCount * res_index + i;
+        unsigned signal_index = index + i;
 
-        float tap = filterTaps[h_index];
-        for (unsigned i = 0; i < channelCount; ++i)
+        if (signal_index < total_historyLen)
         {
-            unsigned new_res_index = channelCount * res_index + i;
-            unsigned signal_index = index + i;
-
-            if (signal_index < total_historyLen)
-            {
-                atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
-                atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
-            }
-            else if(signal_index < totalSignalLen + total_historyLen)
-            {
-                atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
-                atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
-            }
+            atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
+            atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
+        }
+        else if(signal_index < totalSignalLen + total_historyLen)
+        {
+            atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
+            atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
         }
     }
-    
 }
 
 __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftSize,
