@@ -44,36 +44,35 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
     }
 }
 
-__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftSize,
-    unsigned fftCount, unsigned tensorlen, unsigned packetIndex, unsigned signalLen, unsigned filterLen)
+__global__ void multiply(cufftComplex* tensor, cufftComplex* factors, cufftComplex* initPhaseFactors, unsigned fftSize,
+    unsigned fftCount, unsigned tensorlen, unsigned signalLen, unsigned filterLen)
 {
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
 
     if(index < tensorlen)
     {
         unsigned factor_index = index % (fftCount * fftSize); //total_fftSize
-        tensor[index] = tensor[index] * factors[factor_index];
+        unsigned f_index = index % fftSize;
+        tensor[index] = tensor[index] * factors[factor_index] * initPhaseFactors[f_index];
     }
 }
 
-__global__ void updatePhaseFactors(cufftComplex* phaseFactors, unsigned signalLen, unsigned filterLen, unsigned total_fftSize, unsigned fftSize)
+__global__ void updateInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned signalLen, unsigned filterLen, unsigned total_fftSize, unsigned fftSize)
 {
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
-    if (index < total_fftSize){
-        unsigned f = index % fftSize;
-
-        float arg = (2 * M_PI * f / fftSize) * (signalLen - filterLen  + 1);
+    if (index < fftSize){
+        float arg = (2 * M_PI * index / fftSize) * (signalLen - filterLen  + 1);
         cufftComplex phase;
         phase.x = cosf(arg);
         phase.y = sinf(arg);
 
-        phaseFactors[index] = phaseFactors[index] * phase;
+        initPhaseFactors[index] = initPhaseFactors[index] * phase;
     }
 }
 
 int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen, unsigned fftSize,
     unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,unsigned threads_per_block,
-    unsigned packetIndex, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history)
+    unsigned packetIndex, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history, cufftComplex* dev_initPhaseFactors)
 {
     if (threads_per_block > fftSize){
         threads_per_block = fftSize;
@@ -118,8 +117,8 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
     num_Blocks = ceil((float)resultLen / threads_per_block);
-    multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors,
-        fftSize, fftCount, resultLen, packetIndex, signalLen, filterLen);
+    multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, dev_initPhaseFactors,
+        fftSize, fftCount, resultLen, signalLen, filterLen);
     dev_result = reinterpret_cast<float*>(dev_complexResult);
 
     cudaEventRecord(stop);
@@ -149,7 +148,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
                             //Временно
-    updatePhaseFactors<<<1024*1024,1024>>>(dev_phaseFactors, signalLen, filterLen, total_fftSize, fftSize);
+    updateInitPhaseFactors<<<1024*1024,1024>>>(dev_initPhaseFactors, signalLen, filterLen, total_fftSize, fftSize);
 
     cudaFree(dev_tensor);
 

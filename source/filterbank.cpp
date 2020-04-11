@@ -38,14 +38,27 @@ public:
         }
 
         cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
+        cufftComplex* initPhaseFactors = new cufftComplex[fftSize];
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
+        getInitPhaseFactors(initPhaseFactors, fftSize);
 
         cudaStatus = cudaMalloc((void**)&dev_phaseFactors, total_fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
 
+        cudaStatus = cudaMalloc((void**)&dev_initPhaseFactors, fftSize * sizeof(cufftComplex));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc failed!\n");
+        }
+
         cudaStatus = cudaMemcpy(dev_phaseFactors, phaseFactors, total_fftSize * sizeof(cufftComplex),
+            cudaMemcpyHostToDevice);
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMemcpy failed!\n");
+        }
+
+        cudaStatus = cudaMemcpy(dev_initPhaseFactors, initPhaseFactors, fftSize * sizeof(cufftComplex),
             cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
@@ -75,13 +88,14 @@ public:
     int execute(float * dev_inSignal, float * dev_result){
         int status;
         status = executeImpl(dev_inSignal, signalLen, dev_filterTaps, filterLen, fftSize, step, channelCount,
-            dev_result, resultLen, threadsPerBlock, packetIndex, plan, dev_phaseFactors, dev_history);
+            dev_result, resultLen, threadsPerBlock, packetIndex, plan, dev_phaseFactors, dev_history, dev_initPhaseFactors);
 
         packetIndex++;
         return status;
     }
 
-    int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen){
+    int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen)
+    {
         for (unsigned k = 0; k < fftCount; ++k)
         {
             for (unsigned f = 0; f < fftSize; ++f)
@@ -90,6 +104,16 @@ public:
                 result[k*fftSize + f].x = cosf(arg);
                 result[k*fftSize + f].y = sinf(arg);
             }
+        }
+        return 0;
+    }
+
+    int getInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned fftSize)
+    {
+        for (int i = 0; i < fftSize; ++i)
+        {
+            initPhaseFactors[i].x = 1;
+            initPhaseFactors[i].y = 0;
         }
         return 0;
     }
@@ -106,6 +130,7 @@ private:
     float* filterTaps;
     float* dev_filterTaps;
     cufftComplex* dev_phaseFactors;
+    cufftComplex* dev_initPhaseFactors;
     cufftComplex* dev_history;
     cufftHandle plan;
 };
