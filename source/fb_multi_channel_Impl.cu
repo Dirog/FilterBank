@@ -20,28 +20,33 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
 {
     unsigned sub_batch_index = blockIdx.x % sub_batch_count;
     unsigned h_index = (sub_batch_index * blockDim.x + threadIdx.x);
-    unsigned f_index = h_index % fftSize;
-    unsigned batch_index = blockIdx.x / sub_batch_count;
-    unsigned index = (batch_index * step + h_index) * channelCount;
-    unsigned res_index = batch_index * fftSize + f_index;
 
-    float tap = filterTaps[h_index];
-    for (unsigned i = 0; i < channelCount; ++i)
+    if (h_index < 28812)
     {
-        unsigned new_res_index = channelCount * res_index + i;
-        unsigned signal_index = index + i;
+        unsigned f_index = h_index % fftSize;
+        unsigned batch_index = blockIdx.x / sub_batch_count;
+        unsigned index = (batch_index * step + h_index) * channelCount;
+        unsigned res_index = batch_index * fftSize + f_index;
 
-        if (signal_index < total_historyLen)
+        float tap = filterTaps[h_index];
+        for (unsigned i = 0; i < channelCount; ++i)
         {
-            atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
-            atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
-        }
-        else if(signal_index < totalSignalLen + total_historyLen)
-        {
-            atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
-            atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
+            unsigned new_res_index = channelCount * res_index + i;
+            unsigned signal_index = index + i;
+
+            if (signal_index < total_historyLen)
+            {
+                atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
+                atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
+            }
+            else if(signal_index < totalSignalLen + total_historyLen)
+            {
+                atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
+                atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
+            }
         }
     }
+    
 }
 
 __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned fftSize,
@@ -51,16 +56,23 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
 
     if(index < tensorlen)
     {
+        unsigned factor_index = index % (fftCount * fftSize); //total_fftSize
+        tensor[index] = tensor[index] * factors[factor_index];
+    }
+}
+
+__global__ void updatePhaseFactors(cufftComplex* phaseFactors, unsigned signalLen, unsigned filterLen, unsigned total_fftSize, unsigned fftSize)
+{
+    unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
+    if (index < total_fftSize){
         unsigned f = index % fftSize;
-        unsigned k = index / fftCount;
 
-        float arg = 2 * M_PI * f * (signalLen - filterLen + 1) * packetIndex / signalLen;
-        cufftComplex packetPhaseFactor;
-        packetPhaseFactor.x = cosf(arg);
-        packetPhaseFactor.y = sinf(arg); //TO DO: move to another kernel
+        float arg = (2 * M_PI * f / fftSize) * (signalLen - filterLen  + 1);
+        cufftComplex phase;
+        phase.x = cosf(arg);
+        phase.y = sinf(arg);
 
-        unsigned factor_index = index % (fftCount * fftSize);
-        tensor[index] = tensor[index] * factors[factor_index] * packetPhaseFactor;
+        phaseFactors[index] = phaseFactors[index] * phase;
     }
 }
 
@@ -80,7 +92,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     cufftComplex* dev_tensor;
 
     unsigned num_Blocks;
-    num_Blocks = (fftCount) * ceil((float)filterLen / threads_per_block);
+    num_Blocks = fftCount * ceil((float)filterLen / threads_per_block);
 
     cudaError_t cudaStatus;
     cudaStatus = cudaMalloc((float**)&dev_tensor, 2 * resultLen * sizeof(float));
@@ -140,6 +152,9 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
         fprintf(stderr, "cudaMemcpy failed!\n");
         return cudaStatus;
     }
+
+                            //Временно
+    updatePhaseFactors<<<1024*1024,1024>>>(dev_phaseFactors, signalLen, filterLen, total_fftSize, fftSize);
 
     cudaFree(dev_tensor);
 

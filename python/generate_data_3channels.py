@@ -27,7 +27,7 @@ taps = taps.astype("float32")
 
 signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.71-0.00004)*signalLen, 1, (0.71+0.00001)*signalLen)
 signal2 = 1*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
-signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00004)*signalLen)
+signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00004)*signalLen) + np.sin(2*np.pi*0.45*n)
 
 signal1 = signal1.astype("complex64")
 signal2 = signal2.astype("complex64")

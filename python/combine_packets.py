@@ -56,6 +56,7 @@ for channel in range(channelCount):
 
 		    f_spec_ax = fig.add_subplot(gs[0:2, 1:])
 		    f_spec_ax.set_title('Magnitude spectrum')
+		    f_spec_ax.grid()
 
 		    f_phs_ax = fig.add_subplot(gs[2:, 1:])
 		    f_phs_ax.set_title('Phase spectrum')
