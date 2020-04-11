@@ -52,7 +52,9 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, unsigned f
     if(index < tensorlen)
     {
         unsigned f = index % fftSize;
-        float arg = 2 * M_PI * f * (1 - filterLen / signalLen) * packetIndex; //???
+        unsigned k = index / fftCount;
+
+        float arg = 2 * M_PI * f * (signalLen - filterLen + 1) * packetIndex / signalLen;
         cufftComplex packetPhaseFactor;
         packetPhaseFactor.x = cosf(arg);
         packetPhaseFactor.y = sinf(arg); //TO DO: move to another kernel
