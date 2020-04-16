@@ -51,8 +51,9 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, cufftCompl
 
     if(index < tensorlen)
     {
+        unsigned f = index % fftSize;
         unsigned factor_index = index % (fftCount * fftSize); //total_fftSize
-        tensor[index] = tensor[index] * factors[factor_index] * initPhaseFactors[factor_index];
+        tensor[index] = tensor[index] * factors[factor_index] * initPhaseFactors[f];
     }
 }
 
@@ -61,13 +62,12 @@ __global__ void updateInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned 
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
     if (index < total_fftSize){
         unsigned f = index % fftSize;
-        unsigned k = index / fftSize;
-        float arg = (2 * M_PI * f / fftSize) * (signalLen) * k;
+        float arg = (2 * M_PI * f / fftSize) * (signalLen);
         cufftComplex phase;
         phase.x = cosf(arg);
         phase.y = sinf(arg);
 
-        initPhaseFactors[k*fftSize + f] = initPhaseFactors[k*fftSize + f] * phase;
+        initPhaseFactors[f] = initPhaseFactors[f] * phase;
     }
 }
 

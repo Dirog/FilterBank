@@ -38,7 +38,7 @@ public:
         }
 
         cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
-        cufftComplex* initPhaseFactors = new cufftComplex[total_fftSize];
+        cufftComplex* initPhaseFactors = new cufftComplex[fftSize];
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
         getInitPhaseFactors(initPhaseFactors, fftSize, fftCount);
 
@@ -47,7 +47,7 @@ public:
             fprintf(stderr, "cudaMalloc failed!\n");
         }
 
-        cudaStatus = cudaMalloc((void**)&dev_initPhaseFactors, total_fftSize * sizeof(cufftComplex));
+        cudaStatus = cudaMalloc((void**)&dev_initPhaseFactors, fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
@@ -58,7 +58,7 @@ public:
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
 
-        cudaStatus = cudaMemcpy(dev_initPhaseFactors, initPhaseFactors, total_fftSize * sizeof(cufftComplex),
+        cudaStatus = cudaMemcpy(dev_initPhaseFactors, initPhaseFactors, fftSize * sizeof(cufftComplex),
             cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
@@ -100,7 +100,7 @@ public:
         {
             for (unsigned f = 0; f < fftSize; ++f)
             {
-                float arg = -2 * M_PI * f * k * fftCount / signalLen;
+                float arg = -2 * M_PI * f * (k) * fftCount / signalLen;
                 result[k*fftSize + f].x = cosf(arg);
                 result[k*fftSize + f].y = sinf(arg);
             }
@@ -110,13 +110,10 @@ public:
 
     int getInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned fftSize, unsigned fftCount)
     {
-        for (unsigned k = 0; k < fftCount; ++k)
+        for (unsigned f = 0; f < fftSize; ++f)
         {
-            for (unsigned f = 0; f < fftSize; ++f)
-            {
-                initPhaseFactors[k*fftSize + f].x = 1;
-                initPhaseFactors[k*fftSize + f].y = 0;
-            }
+            initPhaseFactors[f].x = 1;
+            initPhaseFactors[f].y = 0;
         }
         return 0;
     }
