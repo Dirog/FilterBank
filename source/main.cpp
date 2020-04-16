@@ -88,7 +88,7 @@ int main() {
 
     cudaStatus = cudaMemcpy(result, dev_result, 2 * resultLen * sizeof(float), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!\n");
+        fprintf(stderr, "cudaMemcpy failed! res1\n");
         return -1;
     }
     int writeStatus;

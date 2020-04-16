@@ -38,16 +38,16 @@ public:
         }
 
         cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
-        cufftComplex* initPhaseFactors = new cufftComplex[fftSize];
+        cufftComplex* initPhaseFactors = new cufftComplex[total_fftSize];
         getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
-        getInitPhaseFactors(initPhaseFactors, fftSize);
+        getInitPhaseFactors(initPhaseFactors, fftSize, fftCount);
 
         cudaStatus = cudaMalloc((void**)&dev_phaseFactors, total_fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
 
-        cudaStatus = cudaMalloc((void**)&dev_initPhaseFactors, fftSize * sizeof(cufftComplex));
+        cudaStatus = cudaMalloc((void**)&dev_initPhaseFactors, total_fftSize * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
@@ -58,7 +58,7 @@ public:
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
 
-        cudaStatus = cudaMemcpy(dev_initPhaseFactors, initPhaseFactors, fftSize * sizeof(cufftComplex),
+        cudaStatus = cudaMemcpy(dev_initPhaseFactors, initPhaseFactors, total_fftSize * sizeof(cufftComplex),
             cudaMemcpyHostToDevice);
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMemcpy failed!\n");
@@ -108,12 +108,15 @@ public:
         return 0;
     }
 
-    int getInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned fftSize)
+    int getInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned fftSize, unsigned fftCount)
     {
-        for (int i = 0; i < fftSize; ++i)
+        for (unsigned k = 0; k < fftCount; ++k)
         {
-            initPhaseFactors[i].x = 1;
-            initPhaseFactors[i].y = 0;
+            for (unsigned f = 0; f < fftSize; ++f)
+            {
+                initPhaseFactors[k*fftSize + f].x = 1;
+                initPhaseFactors[k*fftSize + f].y = 0;
+            }
         }
         return 0;
     }
