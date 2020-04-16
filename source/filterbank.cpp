@@ -6,6 +6,20 @@
 #include "filterbank.hpp"
 #include "fb_multi_channel_Impl.cuh"
 
+int highestPowerof2(int n) 
+{ 
+    int res = 0; 
+    for (int i = n; i >= 1; i--) 
+    { 
+        if ((i & (i-1)) == 0) 
+        { 
+            res = i; 
+            break; 
+        } 
+    } 
+    return res; 
+} 
+
 class Filterbank::Filterbank_impl{
 public:
     Filterbank_impl(unsigned signalLen, unsigned channelCount, unsigned fftSize, unsigned step,
@@ -39,7 +53,7 @@ public:
 
         cufftComplex* phaseFactors = new cufftComplex[total_fftSize];
         cufftComplex* initPhaseFactors = new cufftComplex[fftSize];
-        getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen);
+        getPhaseFactors(phaseFactors, fftSize, fftCount, step, signalLen, filterLen);
         getInitPhaseFactors(initPhaseFactors, fftSize, fftCount);
 
         cudaStatus = cudaMalloc((void**)&dev_phaseFactors, total_fftSize * sizeof(cufftComplex));
@@ -74,7 +88,13 @@ public:
             fprintf(stderr, "cudaMemset failed!\n");
         }
 
+        if (threadsPerBlock > fftSize)
+        {
+            threadsPerBlock = highestPowerof2(fftSize);
+        }
+
         packetIndex = 0;
+
     }
 
     ~Filterbank_impl()
@@ -94,13 +114,13 @@ public:
         return status;
     }
 
-    int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen)
+    int getPhaseFactors(cufftComplex * result, unsigned fftSize, unsigned fftCount, unsigned step, unsigned signalLen, unsigned filterLen)
     {
         for (unsigned k = 0; k < fftCount; ++k)
         {
             for (unsigned f = 0; f < fftSize; ++f)
             {
-                float arg = -2 * M_PI * f * (k) * fftCount / signalLen;
+                float arg = -2 * M_PI * f * (k) * fftCount / fftSize;
                 result[k*fftSize + f].x = cosf(arg);
                 result[k*fftSize + f].y = sinf(arg);
             }

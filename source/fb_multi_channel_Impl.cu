@@ -75,10 +75,6 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,unsigned threads_per_block,
     unsigned packetIndex, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history, cufftComplex* dev_initPhaseFactors)
 {
-    if (threads_per_block > fftSize){
-        threads_per_block = fftSize;
-    }
-
     unsigned historyLen = filterLen - 1;
     unsigned total_historyLen = historyLen * channelCount;
     unsigned total_signalLen = signalLen * channelCount;
@@ -149,7 +145,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
                             //Временно
-    updateInitPhaseFactors<<<1024*1024,1024>>>(dev_initPhaseFactors, signalLen, filterLen, total_fftSize, fftSize, fftCount);
+    //updateInitPhaseFactors<<<1024*1024,1024>>>(dev_initPhaseFactors, signalLen, filterLen, total_fftSize, fftSize, fftCount);
 
     cudaFree(dev_tensor);
 
