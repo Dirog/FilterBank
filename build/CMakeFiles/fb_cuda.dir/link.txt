@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfb_cuda.a  CMakeFiles/fb_cuda.dir/source/filterbank.cpp.o CMakeFiles/fb_cuda.dir/source/fb_multi_channel_Impl.cu.o
-/usr/bin/ranlib libfb_cuda.a
