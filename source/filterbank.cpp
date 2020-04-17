@@ -78,14 +78,15 @@ public:
             fprintf(stderr, "cudaMemcpy failed!\n");
         }
 
-        cudaStatus = cudaMalloc((void**)&dev_history, (filterLen - 1) * channelCount * sizeof(cufftComplex));
+        cudaStatus = cudaMallocManaged((void**)&dev_history, (filterLen - 1) * channelCount * sizeof(cufftComplex));
         if (cudaStatus != cudaSuccess) {
             fprintf(stderr, "cudaMalloc failed!\n");
         }
 
-        cudaStatus = cudaMemset(dev_history, 0, (filterLen - 1) * channelCount);
-        if (cudaStatus != cudaSuccess) {
-            fprintf(stderr, "cudaMemset failed!\n");
+        for (int i = 0; i < filterLen - 1; ++i)
+        {
+            dev_history[i].x = 0.0;
+            dev_history[i].y = 0.0;
         }
 
         if (threadsPerBlock > fftSize)
@@ -120,9 +121,9 @@ public:
         {
             for (unsigned f = 0; f < fftSize; ++f)
             {
-                float arg = -2 * M_PI * f * (k) * fftCount / fftSize;
-                result[k*fftSize + f].x = cosf(arg);
-                result[k*fftSize + f].y = sinf(arg);
+                double arg = -2 * M_PI * f * k * fftCount / fftSize;
+                result[k*fftSize + f].x = cos(arg);
+                result[k*fftSize + f].y = sin(arg);
             }
         }
         return 0;

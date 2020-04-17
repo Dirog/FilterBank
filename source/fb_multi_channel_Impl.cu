@@ -15,37 +15,42 @@ __inline__ __device__ cufftComplex operator * (cufftComplex const& a, cufftCompl
 }
 
 __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cufftComplex* history,
-    float* filterTaps, unsigned step, unsigned channelCount, unsigned fftSize,
+    float* filterTaps, unsigned step, unsigned channelCount, unsigned fftSize, unsigned filterLen,
     unsigned totalSignalLen, unsigned total_historyLen, unsigned sub_batch_count)
 {
     unsigned sub_batch_index = blockIdx.x % sub_batch_count;
     unsigned h_index = (sub_batch_index * blockDim.x + threadIdx.x);
-    unsigned f_index = h_index % fftSize;
-    unsigned batch_index = blockIdx.x / sub_batch_count;
-    unsigned index = (batch_index * step + h_index) * channelCount;
-    unsigned res_index = batch_index * fftSize + f_index;
 
-    float tap = filterTaps[h_index];
-    for (unsigned i = 0; i < channelCount; ++i)
+    if (h_index < filterLen)
     {
-        unsigned new_res_index = channelCount * res_index + i;
-        unsigned signal_index = index + i;
+        unsigned f_index = h_index % fftSize;
+        unsigned batch_index = blockIdx.x / sub_batch_count;
+        unsigned index = (batch_index * step + h_index) * channelCount;
+        unsigned res_index = batch_index * fftSize + f_index;
 
-        if (signal_index < total_historyLen)
+
+        float tap = filterTaps[h_index];
+        for (unsigned i = 0; i < channelCount; ++i)
         {
-            atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
-            atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
-        }
-        else if(signal_index < totalSignalLen + total_historyLen)
-        {
-            atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
-            atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
+            unsigned new_res_index = channelCount * res_index + i;
+            unsigned signal_index = index + i;
+
+            if (signal_index < total_historyLen)
+            {
+                atomicAdd(&(resultVec[new_res_index].x), tap * history[signal_index].x);
+                atomicAdd(&(resultVec[new_res_index].y), tap * history[signal_index].y);
+            }
+            else if(signal_index < totalSignalLen + total_historyLen)
+            {
+                atomicAdd(&(resultVec[new_res_index].x), tap * signal[signal_index - total_historyLen].x);
+                atomicAdd(&(resultVec[new_res_index].y), tap * signal[signal_index - total_historyLen].y);
+            }
         }
     }
 }
 
 __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, cufftComplex* initPhaseFactors, unsigned fftSize,
-    unsigned fftCount, unsigned tensorlen, unsigned signalLen, unsigned filterLen)
+    unsigned fftCount, unsigned tensorlen)
 {
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -62,17 +67,21 @@ __global__ void updateInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned 
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
     if (index < total_fftSize){
         unsigned f = index % fftSize;
-        float arg = (2 * M_PI * f / fftSize) * (signalLen);
+
+        double arg = -2 * M_PI * f * (signalLen) / fftSize;
+
         cufftComplex phase;
-        phase.x = cosf(arg);
-        phase.y = sinf(arg);
+        phase.x = cos(arg);
+        phase.y = sin(arg);
+
+        //printf("%f\n", phase.x);
 
         initPhaseFactors[f] = initPhaseFactors[f] * phase;
     }
 }
 
 int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, unsigned filterLen, unsigned fftSize,
-    unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen,unsigned threads_per_block,
+    unsigned step, unsigned channelCount, float* dev_result, unsigned long resultLen, unsigned threads_per_block,
     unsigned packetIndex, cufftHandle plan, cufftComplex* dev_phaseFactors, cufftComplex* dev_history, cufftComplex* dev_initPhaseFactors)
 {
     unsigned historyLen = filterLen - 1;
@@ -86,7 +95,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     num_Blocks = fftCount * ceil((float)filterLen / threads_per_block);
 
     cudaError_t cudaStatus;
-    cudaStatus = cudaMalloc((float**)&dev_tensor, 2 * resultLen * sizeof(float));
+    cudaStatus = cudaMallocManaged((cufftComplex**)&dev_tensor, resultLen * sizeof(cufftComplex));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return cudaStatus;
@@ -101,7 +110,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     cufftComplex* dev_complexResult = reinterpret_cast<cufftComplex*>(dev_result);
 
     multiplyAndSum <<<num_Blocks, threads_per_block >>> (dev_inComplexSignal, dev_tensor, dev_history, dev_filterTaps,
-        step, channelCount, fftSize, total_signalLen, total_historyLen, ceil((float)filterLen / threads_per_block));
+        step, channelCount, fftSize, filterLen, total_signalLen, total_historyLen, ceil((float)filterLen / threads_per_block));
 
     cufftResult cufftStatus;
     for (int i = 0; i < channelCount; ++i)
@@ -115,7 +124,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
 
     num_Blocks = ceil((float)resultLen / threads_per_block);
     multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, dev_initPhaseFactors,
-        fftSize, fftCount, resultLen, signalLen, filterLen);
+        fftSize, fftCount, resultLen);
     dev_result = reinterpret_cast<float*>(dev_complexResult);
 
     cudaEventRecord(stop);
@@ -145,7 +154,7 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
                             //Временно
-    //updateInitPhaseFactors<<<1024*1024,1024>>>(dev_initPhaseFactors, signalLen, filterLen, total_fftSize, fftSize, fftCount);
+    updateInitPhaseFactors<<<1024*1024,1024>>>(dev_initPhaseFactors, signalLen, filterLen, total_fftSize, fftSize, fftCount);
 
     cudaFree(dev_tensor);
 

@@ -7,27 +7,27 @@ from scipy import signal as sp
 metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
-signalLen = 10000000
+signalLen = 9000000
 fft_size = 2000
-filterLen = fft_size * 10
+filterLen = fft_size * 13
 step = 10000
 
-print(signalLen // 2)
+print(signalLen // 3)
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
     ", F = " + str(fft_size) + ", K = " + str(step))
-metadata_file.write('%d %d %d %d %d' % (channelCount, signalLen // 2, filterLen, fft_size, step))
+metadata_file.write('%d %d %d %d %d' % (channelCount, signalLen // 3, filterLen, fft_size, step))
 
 f_cutoff = 1/(fft_size)
 
 n = np.linspace(0, 1, signalLen)
 
 taps = sp.firwin(filterLen, f_cutoff)
-taps = taps[::-1]
+#taps = taps[::-1]
 taps = taps.astype("float32")
 
-signal1 = 2*ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + 2*ch.complex_chirp(n, (0.71-0.00004)*signalLen, 1, (0.71+0.00001)*signalLen)
-signal2 = 1*ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
-signal3 = 2*ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00004)*signalLen) + np.sin(2*np.pi*0.45*n)
+signal1 = ch.complex_chirp(n, -0.00001*signalLen, 1, 0.00001*signalLen) + ch.complex_chirp(n, (0.71-0.00004)*signalLen, 1, (0.71+0.00001)*signalLen)
+signal2 = ch.complex_chirp(n, (1/4-0.00001)*signalLen, 1, (1/4+0.00001)*signalLen)
+signal3 = ch.complex_chirp(n, (0.21-0.00001)*signalLen, 1, (0.21+0.00004)*signalLen)
 
 signal1 = signal1.astype("complex64")
 signal2 = signal2.astype("complex64")
@@ -36,7 +36,7 @@ signal3 = signal3.astype("complex64")
 np.asarray(taps).tofile("../python/files/taps")
 
 vector1 = []
-for i in range(0, signalLen // 2):
+for i in range(0, signalLen // 3):
     vector1.append(signal1[i])
     vector1.append(signal2[i])
     vector1.append(signal3[i])
@@ -44,12 +44,20 @@ for i in range(0, signalLen // 2):
 np.asarray(vector1).tofile("../python/files/signal1")
 
 vector2 = []
-for i in range(signalLen // 2, signalLen):
+for i in range(signalLen // 3, 2 * signalLen // 3):
     vector2.append(signal1[i])
     vector2.append(signal2[i])
     vector2.append(signal3[i])
     
 np.asarray(vector2).tofile("../python/files/signal2")
+
+vector3 = []
+for i in range(2 * signalLen // 3, signalLen):
+    vector3.append(signal1[i])
+    vector3.append(signal2[i])
+    vector3.append(signal3[i])
+    
+np.asarray(vector3).tofile("../python/files/signal3")
 
 
 

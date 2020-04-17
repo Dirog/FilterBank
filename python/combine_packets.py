@@ -18,9 +18,11 @@ print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(fi
 
 tensor1 = np.zeros((count, fftSize, channelCount), dtype="complex64")
 tensor2 = np.zeros((count, fftSize, channelCount), dtype="complex64")
+tensor3 = np.zeros((count, fftSize, channelCount), dtype="complex64")
 
 vector1 = np.fromfile("../python/files/result1", dtype="float32")
 vector2 = np.fromfile("../python/files/result2", dtype="float32")
+vector3 = np.fromfile("../python/files/result3", dtype="float32")
 
 i = 0
 for c in range(channelCount):
@@ -28,6 +30,7 @@ for c in range(channelCount):
         for f in range(fftSize):
             tensor1[n, f, c] = complex(float(vector1[2*i]), float(vector1[2*i+1]))
             tensor2[n, f, c] = complex(float(vector2[2*i]), float(vector2[2*i+1]))
+            tensor3[n, f, c] = complex(float(vector3[2*i]), float(vector3[2*i+1]))
             i = i + 1
 
 
@@ -35,7 +38,8 @@ for channel in range(channelCount):
 	for i in range(tensor1.shape[1]):
 		tensorSlice1 = tensor1[:,i,channel]
 		tensorSlice2 = tensor2[:,i,channel]
-		tensorSlice = np.asarray( tensorSlice1.tolist() + tensorSlice2.tolist() )
+		tensorSlice3 = tensor3[:,i,channel]
+		tensorSlice = np.asarray( tensorSlice1.tolist() + tensorSlice2.tolist() + tensorSlice3.tolist() )
 		signalEnergy = sum(np.abs(i)*np.abs(i) for i in tensorSlice)
 		if signalEnergy > 50:
 		    fig = plt.figure(constrained_layout=True)
@@ -69,7 +73,7 @@ for channel in range(channelCount):
 		    f_re_ax.grid(which='both')
 		    f_im_ax.grid(which='both')
 
-		    fs = 2 * signalLen
+		    fs = 3 * signalLen
 		    analytic_signal = sp.hilbert(np.real(tensorSlice))
 		    amplitude_envelope = np.abs(analytic_signal)
 		    instantaneous_phase = np.unwrap(np.angle(analytic_signal))
