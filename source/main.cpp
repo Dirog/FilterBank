@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <vector>
 #include <fstream>
 #include <iostream>
 #include <cuda_runtime.h>
@@ -44,36 +43,36 @@ int main() {
 
 
     cudaError_t cudaStatus;
-    cudaStatus = cudaMallocManaged((float**)&dev_result1, 2 * resultLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_result1, 2 * resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
     }
 
-    cudaStatus = cudaMallocManaged((float**)&dev_result2, 2 * resultLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_result2, 2 * resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
     }
 
-    cudaStatus = cudaMallocManaged((float**)&dev_result3, 2 * resultLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_result3, 2 * resultLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
     }
 
-    cudaStatus = cudaMallocManaged((float**)&dev_inSignal1, 2 * total_signalLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_inSignal1, 2 * total_signalLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
     }
-    cudaStatus = cudaMallocManaged((float**)&dev_inSignal2, 2 * total_signalLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_inSignal2, 2 * total_signalLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
     }
 
-    cudaStatus = cudaMallocManaged((float**)&dev_inSignal3, 2 * total_signalLen * sizeof(float));
+    cudaStatus = cudaMalloc((float**)&dev_inSignal3, 2 * total_signalLen * sizeof(float));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!\n");
         return -1;
@@ -107,7 +106,6 @@ int main() {
         fprintf(stderr, "cudaMemcpy failed!!\n");
         return -1;
     }
-
 
     readVectorFromFile("../python/files/taps", filterTaps, filterLen);
     cudaStatus = cudaMemcpy(dev_filterTaps, filterTaps, filterLen * sizeof(float), cudaMemcpyHostToDevice);

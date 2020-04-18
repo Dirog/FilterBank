@@ -1,5 +1,3 @@
-#include <tuple>
-
 struct Dim {
     const unsigned arrSize = 4;
     unsigned* dimension = new unsigned[arrSize];
