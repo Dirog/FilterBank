@@ -45,7 +45,7 @@ __global__ void multiplyAndSum(cufftComplex* signal, cufftComplex* resultVec, cu
 }
 
 __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, cufftComplex* initPhaseFactors, unsigned fftSize,
-    unsigned fftCount, unsigned tensorlen) //Doesn't work
+    unsigned fftCount, unsigned tensorlen)
 {
     unsigned index  = threadIdx.x + blockDim.x * blockIdx.x;
     if(index < tensorlen)
@@ -54,18 +54,6 @@ __global__ void multiply(cufftComplex* tensor, cufftComplex* factors, cufftCompl
         unsigned factor_index = index % (fftCount * fftSize);
         tensor[index] = tensor[index] * factors[factor_index] * initPhaseFactors[f];
     }
-}
-
-__global__ void multiplyTest(cufftComplex* tensor, cufftComplex* factors, cufftComplex* initPhaseFactors, unsigned fftSize,
-    unsigned fftCount, unsigned tensorlen) //Works
-{
-    for (int i = 0; i < tensorlen; ++i)
-    {
-        unsigned f = i % fftSize;
-        unsigned factor_index = i % (fftCount * fftSize);
-        tensor[i] = tensor[i] * factors[factor_index] * initPhaseFactors[f];
-    }
-
 }
 
 __global__ void updateInitPhaseFactors(cufftComplex* initPhaseFactors, unsigned signalLen, unsigned fftSize)
@@ -125,10 +113,8 @@ int executeImpl(float* dev_inSignal, unsigned signalLen, float* dev_filterTaps, 
     }
 
     num_Blocks = ceil((float)resultLen / threads_per_block);
-     // multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, dev_initPhaseFactors,
-     //     fftSize, fftCount, resultLen);
-
-    multiply <<<1, 1>>> (dev_complexResult, dev_phaseFactors, dev_initPhaseFactors, fftSize, fftCount, resultLen);
+      multiply <<<num_Blocks, threads_per_block>>> (dev_complexResult, dev_phaseFactors, dev_initPhaseFactors,
+          fftSize, fftCount, resultLen);
 
     dev_result = reinterpret_cast<float*>(dev_complexResult);
 

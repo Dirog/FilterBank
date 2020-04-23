@@ -130,7 +130,7 @@ private:
         {
             for (unsigned f = 0; f < fftSize; ++f)
             {
-                double arg = -2 * M_PI * f * k * fftCount / fftSize;
+                double arg = -2 * M_PI * f * k * step / fftSize;
                 result[k*fftSize + f].x = cos(arg);
                 result[k*fftSize + f].y = sin(arg);
             }

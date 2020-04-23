@@ -7,10 +7,10 @@ from scipy import signal as sp
 metadata_file = open("../python/files/metadata", "w")
 
 channelCount = 3
-signalLen = 9000000
-fft_size = 2401
-filterLen = fft_size * 12
-step = 10000
+signalLen = 6000000
+fft_size = 2048
+filterLen = fft_size * 13
+step = 1000
 
 print(signalLen // 3)
 print("C = " + str(channelCount) + ", N = " + str(signalLen) + ", T = " + str(filterLen) + 
